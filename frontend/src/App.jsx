@@ -14,6 +14,7 @@ import Admin from './pages/Admin';
 import Flashcards from './pages/Flashcards';
 
 
+
 // Protected Route Wrapper
 const ProtectedRoute = ({ children, role }) => {
   const user = authService.getUser();
@@ -79,6 +80,8 @@ function App() {
               <Flashcards />
             </ProtectedRoute>
           } />
+
+
 
           <Route path="/admin" element={
             <ProtectedRoute role="admin">

@@ -7,6 +7,7 @@ import connectDB from './config/db.js';
 import authRoutes from './routes/auth.js';
 import documentRoutes from './routes/documents.js';
 import adminRoutes from './routes/admin.js';
+import efficiencyRoutes from './routes/efficiency.js';
 
 dotenv.config();
 
@@ -28,6 +29,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/efficiency', efficiencyRoutes);
 
 app.get('/', (req, res) => res.send('API Running'));
 
