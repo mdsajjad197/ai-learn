@@ -1,8 +1,8 @@
 import Document from '../models/Document.js';
 import FlashcardSet from '../models/FlashcardSet.js';
 import QuizResult from '../models/QuizResult.js';
-import fs from 'fs';
-import path from 'path';
+import axios from 'axios';
+import cloudinary from '../config/cloudinary.js';
 import { generateChatResponse as aiGenerateChat, generateFlashcards as aiGenerateCards, generateQuiz as aiGenerateQuiz } from '../services/aiService.js';
 import { PDFParse } from 'pdf-parse';
 
@@ -21,17 +21,12 @@ export const deleteDocument = async (req, res) => {
             return res.status(401).json({ message: 'User not authorized' });
         }
 
-        // Delete file from filesystem
-        if (doc.url) {
+        // Delete file from Cloudinary
+        if (doc.publicId) {
             try {
-                // If url is absolute path or relative
-                const filePath = path.resolve(doc.url);
-                if (fs.existsSync(filePath)) {
-                    fs.unlinkSync(filePath);
-                }
+                await cloudinary.uploader.destroy(doc.publicId);
             } catch (err) {
-                console.error("Failed to delete file:", err);
-                // Continue to delete DB record even if file delete fails
+                console.error("Failed to delete file from Cloudinary:", err);
             }
         }
 
@@ -56,19 +51,23 @@ export const uploadDocument = async (req, res) => {
             return res.status(400).json({ message: 'No file uploaded' });
         }
 
-        const stats = fs.statSync(req.file.path);
-        const fileSizeInBytes = stats.size;
+        // With Cloudinary storage, stats like size might be in req.file.size or need to be calculated
+        const fileSizeInBytes = req.file.size || 0;
         const fileSize = (fileSizeInBytes / 1024).toFixed(2) + ' KB';
 
         let extractedText = "No textual content extracted.";
 
         if (req.file.mimetype === 'application/pdf') {
             try {
-                const dataBuffer = fs.readFileSync(req.file.path);
+                // Fetch file from Cloudinary URL to get buffer
+                const response = await axios.get(req.file.path, { responseType: 'arraybuffer' });
+                const dataBuffer = Buffer.from(response.data);
+
                 const parser = new PDFParse({ data: dataBuffer });
                 const data = await parser.getText();
                 await parser.destroy();
                 extractedText = data.text;
+
             } catch (pError) {
                 console.error("PDF Parsing Failed:", pError);
                 extractedText = `Error extracting text from PDF: ${pError.message}`;
@@ -77,10 +76,11 @@ export const uploadDocument = async (req, res) => {
 
         const doc = await Document.create({
             name: req.body.name || req.file.originalname,
-            fileName: req.file.filename,
+            fileName: req.file.filename, // This is the public_id in Cloudinary storage
             type: req.file.mimetype,
             size: fileSize,
-            url: req.file.path,
+            url: req.file.path, // Cloudinary URL
+            publicId: req.file.filename, // Store public_id explicitly
             owner: req.user._id,
             content: extractedText
         });

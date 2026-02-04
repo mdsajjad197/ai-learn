@@ -17,20 +17,19 @@ import {
     getAllUserFlashcards
 } from '../controllers/docController.js';
 
+import cloudinary from '../config/cloudinary.js';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
+
 const router = express.Router();
 
-// Set up storage engine
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const uploadDir = path.join(process.cwd(), 'uploads');
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        cb(null, uploadDir);
+// Set up Cloudinary storage
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'antigravity-docs',
+        resource_type: 'auto', // allows pdf, images, etc.
+        allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'txt', 'md'] // adjusted allowed formats
     },
-    filename: function (req, file, cb) {
-        cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
-    }
 });
 
 const upload = multer({

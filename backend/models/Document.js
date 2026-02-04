@@ -6,6 +6,7 @@ const DocumentSchema = new mongoose.Schema({
     type: { type: String },
     size: { type: String },
     url: { type: String, required: true },
+    publicId: { type: String },
     content: { type: String },
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     createdAt: { type: Date, default: Date.now }
