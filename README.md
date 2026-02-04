@@ -1,4 +1,5 @@
-# AntiGravity - AI Learning Companion
+#
+AI Learning Companion
 
 An AI-powered learning platform that helps you study smarter, not harder.
 
