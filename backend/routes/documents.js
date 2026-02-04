@@ -13,8 +13,6 @@ import {
     deleteDocument,
     getUserStats,
     generateQuiz,
-    getUserStats,
-    generateQuiz,
     saveQuizResult,
     getAllUserFlashcards
 } from '../controllers/docController.js';
