@@ -59,6 +59,12 @@ export const uploadDocument = async (req, res) => {
 
         if (req.file.mimetype === 'application/pdf') {
             try {
+                console.log("[DEBUG] Uploaded File Details:", {
+                    filename: req.file.filename,
+                    path: req.file.path,
+                    mimetype: req.file.mimetype
+                });
+
                 // Generate signed URL to ensure access even if file is private/authenticated
                 const signedUrl = cloudinary.url(req.file.filename, {
                     resource_type: 'image', // PDFs are treated as images for delivery often, or 'raw'
