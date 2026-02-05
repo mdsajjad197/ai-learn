@@ -59,8 +59,19 @@ export const uploadDocument = async (req, res) => {
 
         if (req.file.mimetype === 'application/pdf') {
             try {
-                // Fetch file from Cloudinary URL to get buffer
-                const response = await axios.get(req.file.path, { responseType: 'arraybuffer' });
+                // Generate signed URL to ensure access even if file is private/authenticated
+                const signedUrl = cloudinary.url(req.file.filename, {
+                    resource_type: 'image', // PDFs are treated as images for delivery often, or 'raw'
+                    type: 'authenticated', // Force authenticated delivery type
+                    sign_url: true,
+                    flags: 'attachment' // Encourage download behavior
+                });
+
+                // Check if signedUrl is valid, fallback to req.file.path if simple
+                const downloadUrl = signedUrl || req.file.path;
+                console.log(`Downloading PDF from: ${downloadUrl}`);
+
+                const response = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
                 const dataBuffer = Buffer.from(response.data);
 
                 const data = await pdf(dataBuffer);
