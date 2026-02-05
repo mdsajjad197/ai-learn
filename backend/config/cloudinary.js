@@ -17,4 +17,7 @@ cloudinary.config({
     api_secret: CLOUDINARY_API_SECRET
 });
 
+// Flag to check if configured (for preventing crashes)
+cloudinary.isConfigured = !!(CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET);
+
 export default cloudinary;

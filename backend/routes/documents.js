@@ -22,28 +22,31 @@ import { CloudinaryStorage } from 'multer-storage-cloudinary';
 
 const router = express.Router();
 
-// Set up Cloudinary storage
-const storage = new CloudinaryStorage({
-    cloudinary: cloudinary,
-    params: {
-        folder: 'antigravity-docs',
-        resource_type: (req, file) => {
-            return file.mimetype === 'application/pdf' ? 'raw' : 'auto';
+// Set up Storage (Safe Fallback)
+let storage;
+if (cloudinary.isConfigured) {
+    storage = new CloudinaryStorage({
+        cloudinary: cloudinary,
+        params: {
+            folder: 'antigravity-docs',
+            resource_type: (req, file) => file.mimetype === 'application/pdf' ? 'raw' : 'auto',
+            public_id: (req, file) => {
+                const name = file.originalname.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
+                const ext = path.extname(file.originalname);
+                return `${Date.now()}-${name}${ext}`;
+            },
+            allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'txt', 'md'],
         },
-        public_id: (req, file) => {
-            // For raw files, extension is crucial. For images, it's optional but good practice.
-            const name = file.originalname.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
-            const ext = path.extname(file.originalname);
-            return `${Date.now()}-${name}${ext}`;
-        },
-        allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'txt', 'md'],
-        access_mode: 'public'
-    },
-});
+    });
+} else {
+    // Fallback to memory storage to prevent server crash on startup
+    console.warn("⚠️ Cloudinary not configured. Using MemoryStorage (Uploads will fail safely).");
+    storage = multer.memoryStorage();
+}
 
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 10000000 }, // 10MB
+    limits: { fileSize: 10000000 },
     fileFilter: function (req, file, cb) {
         checkFileType(file, cb);
     }
@@ -65,7 +68,22 @@ function checkFileType(file, cb) {
 router.route('/')
     .get(protect, getDocuments);
 
-router.post('/upload', protect, upload.single('file'), uploadDocument);
+router.post('/upload', protect, (req, res, next) => {
+    // Runtime check for configuration
+    if (!cloudinary.isConfigured) {
+        return res.status(500).json({
+            message: "Server Error: Cloudinary API Keys are missing in Vercel Environment Variables. Please add CLOUDINARY_CLOUD_NAME, _API_KEY, and _API_SECRET."
+        });
+    }
+
+    upload.single('file')(req, res, (err) => {
+        if (err) {
+            console.error("Multer/Cloudinary Error:", err);
+            return res.status(500).json({ message: `Upload Error: ${err.message}` });
+        }
+        next();
+    });
+}, uploadDocument);
 
 router.get('/stats', protect, getUserStats);
 router.get('/flashcards/all', protect, getAllUserFlashcards);
