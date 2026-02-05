@@ -1,3 +1,4 @@
+import './polyfills.js'; // Must be first
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -12,12 +13,24 @@ import efficiencyRoutes from './routes/efficiency.js';
 dotenv.config();
 
 // Connect to Database
-connectDB();
+// Connect to Database
+// connectDB(); // Removed immediate call for serverless
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
+// Ensure DB is connected for every request (Serverless pattern)
+app.use(async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (error) {
+        console.error("Database connection error:", error);
+        res.status(500).json({ error: "Database Connection Failed" });
+    }
+});
 const PORT = process.env.PORT || 5000;
 
 // Middleware
@@ -39,7 +52,9 @@ app.use('/api/efficiency', efficiencyRoutes);
 app.get('/', (req, res) => res.send('API Running'));
 
 if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    connectDB().then(() => {
+        app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    });
 }
 
 export default app;
