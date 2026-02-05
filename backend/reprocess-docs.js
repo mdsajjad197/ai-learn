@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { PDFParse } from 'pdf-parse';
+import pdf from 'pdf-parse/lib/pdf-parse.js';
 import Document from './models/Document.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -63,9 +63,7 @@ const run = async () => {
             if (doc.type === 'application/pdf') {
                 try {
                     const dataBuffer = fs.readFileSync(filePath);
-                    const parser = new PDFParse({ data: dataBuffer });
-                    const data = await parser.getText();
-                    await parser.destroy();
+                    const data = await pdf(dataBuffer);
 
                     doc.content = data.text;
                     await doc.save();

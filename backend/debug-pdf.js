@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { PDFParse } from 'pdf-parse';
+import pdf from 'pdf-parse/lib/pdf-parse.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,9 +20,7 @@ async function run() {
         const dataBuffer = fs.readFileSync(filePath);
         console.log(`File read, size: ${dataBuffer.length}`);
 
-        const parser = new PDFParse({ data: dataBuffer });
-        const data = await parser.getText();
-        await parser.destroy();
+        const data = await pdf(dataBuffer);
 
         console.log('Success!');
         console.log('Text length:', data.text.length);

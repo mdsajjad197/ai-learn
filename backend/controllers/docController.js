@@ -4,7 +4,7 @@ import QuizResult from '../models/QuizResult.js';
 import axios from 'axios';
 import cloudinary from '../config/cloudinary.js';
 import { generateChatResponse as aiGenerateChat, generateFlashcards as aiGenerateCards, generateQuiz as aiGenerateQuiz } from '../services/aiService.js';
-import { PDFParse } from 'pdf-parse';
+import pdf from 'pdf-parse/lib/pdf-parse.js';
 
 // @desc    Delete a document
 // @route   DELETE /api/documents/:id
@@ -63,9 +63,7 @@ export const uploadDocument = async (req, res) => {
                 const response = await axios.get(req.file.path, { responseType: 'arraybuffer' });
                 const dataBuffer = Buffer.from(response.data);
 
-                const parser = new PDFParse({ data: dataBuffer });
-                const data = await parser.getText();
-                await parser.destroy();
+                const data = await pdf(dataBuffer);
                 extractedText = data.text;
 
             } catch (pError) {
