@@ -27,8 +27,9 @@ const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
         folder: 'antigravity-docs',
-        resource_type: 'auto', // allows pdf, images, etc.
-        allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'txt', 'md'] // adjusted allowed formats
+        resource_type: 'auto',
+        allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'txt', 'md'],
+        access_mode: 'public' // Explicitly make public for axios.get
     },
 });
 
