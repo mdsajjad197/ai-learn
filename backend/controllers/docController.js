@@ -65,13 +65,12 @@ export const uploadDocument = async (req, res) => {
                     mimetype: req.file.mimetype
                 });
 
-                // Generate signed URL for the standard 'upload' type (public)
-                // We sign it to bypass any "Validating" or "Strict" bucket policies that might block unsigned access.
+                // Generate signed URL for 'raw' resource type (since we forced it in upload)
                 const signedUrl = cloudinary.url(req.file.filename, {
-                    resource_type: 'image',
-                    type: 'upload', // Changed from 'authenticated' to 'upload' to match the actual file type
+                    resource_type: 'raw',
+                    type: 'upload',
                     sign_url: true,
-                    format: 'pdf', // Explicitly request PDF format
+                    // format: 'pdf', // Raw resources don't need format extension in URL usually, or it's part of filename
                     flags: 'attachment'
                 });
 
