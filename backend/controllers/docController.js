@@ -65,12 +65,14 @@ export const uploadDocument = async (req, res) => {
                     mimetype: req.file.mimetype
                 });
 
-                // Generate signed URL to ensure access even if file is private/authenticated
+                // Generate signed URL for the standard 'upload' type (public)
+                // We sign it to bypass any "Validating" or "Strict" bucket policies that might block unsigned access.
                 const signedUrl = cloudinary.url(req.file.filename, {
-                    resource_type: 'image', // PDFs are treated as images for delivery often, or 'raw'
-                    type: 'authenticated', // Force authenticated delivery type
+                    resource_type: 'image',
+                    type: 'upload', // Changed from 'authenticated' to 'upload' to match the actual file type
                     sign_url: true,
-                    flags: 'attachment' // Encourage download behavior
+                    format: 'pdf', // Explicitly request PDF format
+                    flags: 'attachment'
                 });
 
                 // Check if signedUrl is valid, fallback to req.file.path if simple
