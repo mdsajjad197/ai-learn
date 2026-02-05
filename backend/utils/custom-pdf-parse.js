@@ -47,9 +47,8 @@ async function PDF(dataBuffer, options) {
     if (typeof options.version != 'string') options.version = DEFAULT_OPTIONS.version;
     if (options.version == 'default') options.version = DEFAULT_OPTIONS.version;
 
-    // Use standard require for internal PDFJS build
-    // Hardcoded path to ensure Vercel/NFT (Node File Trace) detects the dependency
-    PDFJS = PDFJS ? PDFJS : require('pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js');
+    // Use local vendored PDFJS build to avoid Vercel/NFT module resolution issues
+    PDFJS = PDFJS ? PDFJS : require('./vendor-pdf.js');
 
     ret.version = PDFJS.version;
     PDFJS.disableWorker = true;

@@ -79,6 +79,13 @@ export const uploadDocument = async (req, res) => {
                 console.log(`Downloading PDF from: ${downloadUrl}`);
 
                 const response = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
+
+                // Verify we didn't download an error page (HTML)
+                const contentType = response.headers['content-type'];
+                if (contentType && contentType.includes('text/html')) {
+                    throw new Error("Failed to download PDF: Received HTML error page from Cloudinary (likely 404 or 401)");
+                }
+
                 const dataBuffer = Buffer.from(response.data);
 
                 const data = await pdf(dataBuffer);
@@ -160,7 +167,23 @@ export const getDocumentById = async (req, res) => {
             return res.status(401).json({ message: 'Not authorized' });
         }
 
-        res.json(doc);
+        // Generate a fresh signed URL for the frontend to view/download details
+        // Determine resource type based on stored URL (legacy files might be 'image', new ones 'raw')
+        const resourceType = doc.url.includes('/image/') ? 'image' : 'raw';
+
+        // Generate a fresh signed URL for the frontend to view/download details
+        const signedUrl = cloudinary.url(doc.fileName, {
+            resource_type: resourceType,
+            type: 'upload',
+            sign_url: true,
+            // flags: 'attachment' // Do NOT use attachment flag for preview URL
+        });
+
+        // Return doc object but with the signed URL for access
+        const docResponse = doc.toObject();
+        docResponse.url = signedUrl;
+
+        res.json(docResponse);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

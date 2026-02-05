@@ -30,6 +30,12 @@ const storage = new CloudinaryStorage({
         resource_type: (req, file) => {
             return file.mimetype === 'application/pdf' ? 'raw' : 'auto';
         },
+        public_id: (req, file) => {
+            // For raw files, extension is crucial. For images, it's optional but good practice.
+            const name = file.originalname.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
+            const ext = path.extname(file.originalname);
+            return `${Date.now()}-${name}${ext}`;
+        },
         allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'txt', 'md'],
         access_mode: 'public'
     },
