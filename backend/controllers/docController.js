@@ -4,7 +4,7 @@ import QuizResult from '../models/QuizResult.js';
 import axios from 'axios';
 import cloudinary from '../config/cloudinary.js';
 import { generateChatResponse as aiGenerateChat, generateFlashcards as aiGenerateCards, generateQuiz as aiGenerateQuiz } from '../services/aiService.js';
-import pdf from 'pdf-parse/lib/pdf-parse.js';
+import pdf from '../utils/custom-pdf-parse.js';
 
 // @desc    Delete a document
 // @route   DELETE /api/documents/:id

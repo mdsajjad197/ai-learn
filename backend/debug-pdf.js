@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import pdf from 'pdf-parse/lib/pdf-parse.js';
+import pdf from './utils/custom-pdf-parse.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
