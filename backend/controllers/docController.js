@@ -68,13 +68,13 @@ export const uploadDocument = async (req, res) => {
                 // Use the URL returned directly by Cloudinary upload (guaranteed to be valid)
                 // We previously tried to generate a signed URL here, but it caused 401 errors due to path mismatches.
                 // Since access_mode is 'public', req.file.path is accessible.
-                // FIX: Use explicitly signed URL for raw resource to ensure access
-                const downloadUrl = cloudinary.url(req.file.filename, {
-                    resource_type: 'raw',
-                    type: 'upload',
-                    sign_url: true
-                });
-                console.log(`Downloading PDF from Signed URL: ${downloadUrl}`);
+                // FIX: Manually construct public HTTPS URL to force public access.
+                // This bypasses any auto-signing behavior of the SDK/Multer.
+                const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+                const publicId = req.file.filename;
+                const downloadUrl = `https://res.cloudinary.com/${cloudName}/raw/upload/${publicId}`;
+
+                console.log(`Downloading PDF from Manual Public URL: ${downloadUrl}`);
 
                 const response = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
 
