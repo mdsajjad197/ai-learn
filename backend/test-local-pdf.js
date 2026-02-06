@@ -1,9 +1,8 @@
 import fs from 'fs';
-import pdf from './utils/custom-pdf-parse.js';
+import pdf from './utils/pdfParser.js';
 
-// Create a dummy PDF buffer (not a real PDF, but enough to see if it LOADS the module)
-// Actually, let's just see if the module imports without crashing.
-console.log("Attempting to import custom-pdf-parse...");
+// Test the local vendored PDF parser
+console.log("Attempting to import pdfParser.js...");
 
 async function test() {
     try {

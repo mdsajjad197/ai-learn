@@ -59,8 +59,19 @@ app.get('/', (req, res) => res.send('API Running'));
 
 if (process.env.NODE_ENV !== 'production') {
     connectDB().then(() => {
+        console.log("SERVER VERSION: 2.1 (PDF PARSER RENAMED)");
         app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
     });
 }
+
+// Global Error Handler (MUST be last)
+app.use((err, req, res, next) => {
+    console.error("🔥 GLOBAL ERROR HANDLER:", err);
+    res.status(500).json({
+        message: "Server Error (Global Handler)",
+        error: err.message,
+        stack: process.env.NODE_ENV === 'production' ? null : err.stack
+    });
+});
 
 export default app;

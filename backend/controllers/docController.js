@@ -4,7 +4,7 @@ import QuizResult from '../models/QuizResult.js';
 import axios from 'axios';
 import cloudinary from '../config/cloudinary.js';
 import { generateChatResponse as aiGenerateChat, generateFlashcards as aiGenerateCards, generateQuiz as aiGenerateQuiz } from '../services/aiService.js';
-import pdf from '../utils/custom-pdf-parse.js';
+import pdf from '../utils/pdfParser.js';
 
 // @desc    Delete a document
 // @route   DELETE /api/documents/:id
@@ -65,18 +65,16 @@ export const uploadDocument = async (req, res) => {
                     mimetype: req.file.mimetype
                 });
 
-                // Generate signed URL for 'raw' resource type (since we forced it in upload)
-                const signedUrl = cloudinary.url(req.file.filename, {
+                // Use the URL returned directly by Cloudinary upload (guaranteed to be valid)
+                // We previously tried to generate a signed URL here, but it caused 401 errors due to path mismatches.
+                // Since access_mode is 'public', req.file.path is accessible.
+                // FIX: Use explicitly signed URL for raw resource to ensure access
+                const downloadUrl = cloudinary.url(req.file.filename, {
                     resource_type: 'raw',
                     type: 'upload',
-                    sign_url: true,
-                    // format: 'pdf', // Raw resources don't need format extension in URL usually, or it's part of filename
-                    flags: 'attachment'
+                    sign_url: true
                 });
-
-                // Check if signedUrl is valid, fallback to req.file.path if simple
-                const downloadUrl = signedUrl || req.file.path;
-                console.log(`Downloading PDF from: ${downloadUrl}`);
+                console.log(`Downloading PDF from Signed URL: ${downloadUrl}`);
 
                 const response = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
 

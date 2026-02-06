@@ -1,5 +1,5 @@
 import axios from 'axios';
-import pdf from './utils/custom-pdf-parse.js';
+import pdf from './utils/pdfParser.js';
 
 const CHECK_URL = "https://res.cloudinary.com/dgznhwchw/image/upload/v1770320645/antigravity-docs/doyuowq0qixpr9lsljex.pdf";
 

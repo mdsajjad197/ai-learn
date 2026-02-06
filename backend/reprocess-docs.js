@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import pdf from './utils/custom-pdf-parse.js';
+import pdf from './utils/pdfParser.js';
 import Document from './models/Document.js';
 
 const __filename = fileURLToPath(import.meta.url);

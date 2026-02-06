@@ -55,7 +55,19 @@ export class DataService {
             });
             return response.data;
         } catch (error) {
-            throw new Error(error.response?.data?.message || 'Upload failed');
+            console.error("Upload Error Details:", {
+                message: error.message,
+                status: error.response?.status,
+                data: error.response?.data,
+                headers: error.response?.headers
+            });
+
+            const serverMsg = error.response?.data?.message;
+            if (error.response?.headers && error.response.headers['content-type']?.includes('text/html')) {
+                // Extract status to know if it's 404 (Wrong URL), 500 (Server Crash), 413 (Too Large)
+                throw new Error(`Upload Failed: Server returned HTML (Status ${error.response.status}). Check Vercel Logs.`);
+            }
+            throw new Error(serverMsg || error.message || 'Upload failed');
         }
     }
 
