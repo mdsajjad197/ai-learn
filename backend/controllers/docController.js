@@ -170,14 +170,15 @@ export const getDocumentById = async (req, res) => {
         const resourceType = doc.url.includes('/image/') ? 'image' : 'raw';
 
         // Generate a fresh signed URL for the frontend to view/download details
-        const signedUrl = cloudinary.url(doc.fileName, {
-            resource_type: resourceType,
-            type: 'upload',
-            sign_url: true,
-            // flags: 'attachment' // Do NOT use attachment flag for preview URL
-        });
+        // FIX: Force Public URL for retrieval as well.
+        // Signed URLs differ from the upload format and cause 401s.
+        const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+        // doc.fileName contains the public_id + extension
+        const signedUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${doc.fileName}`;
 
-        // Return doc object but with the signed URL for access
+        console.log(`[DEBUG] Generated Public Preview URL: ${signedUrl}`);
+
+        // Return doc object but with the fresh URL for access
         const docResponse = doc.toObject();
         docResponse.url = signedUrl;
 

@@ -296,22 +296,7 @@ const DocumentDetail = () => {
                             <div className="h-full overflow-y-auto p-4 bg-gray-100 flex flex-col">
                                 {doc.type === 'application/pdf' ? (
                                     <div className="flex flex-col h-full gap-4">
-                                        <div className="bg-yellow-50 text-yellow-800 p-3 rounded-lg text-xs flex flex-col gap-1 shrink-0 break-all">
-                                            <div className="flex justify-between items-center bg-yellow-100 p-1 rounded">
-                                                <span><strong>Debug Info:</strong> URL = {doc.url}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center mt-1">
-                                                <span>If preview fails, open the file directly:</span>
-                                                <a
-                                                    href={doc.url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="underline font-bold hover:text-yellow-900"
-                                                >
-                                                    Open Original PDF
-                                                </a>
-                                            </div>
-                                        </div>
+
                                         <iframe
                                             src={`https://docs.google.com/viewer?url=${encodeURIComponent(doc.url)}&embedded=true`}
                                             className="w-full flex-grow rounded-xl shadow-sm border border-gray-200 bg-white"
