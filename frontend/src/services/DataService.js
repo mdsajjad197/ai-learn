@@ -124,6 +124,15 @@ export class DataService {
             throw new Error('Chat failed: ' + serverMessage);
         }
     }
+
+    async generateRevisionPlan(docId) {
+        try {
+            const response = await api.post(`/documents/${docId}/plan`);
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data?.message || 'Plan generation failed');
+        }
+    }
 }
 
 export const dataService = new DataService();

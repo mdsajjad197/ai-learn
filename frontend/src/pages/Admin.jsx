@@ -221,6 +221,26 @@ const Admin = () => {
                     />
                 </div>
 
+                {/* Functionality: Analytics Chart */}
+                <div className="bg-white/60 backdrop-blur-xl rounded-[2rem] shadow-xl border border-white/50 p-6 mb-10 text-center animate-fade-in-up delay-150">
+                    <h3 className="text-xl font-bold text-gray-800 mb-6 text-left pl-2">Top Users by Activity</h3>
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={users.sort((a, b) => b.documentCount - a.documentCount).slice(0, 5)}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12 }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12 }} />
+                                <Tooltip
+                                    cursor={{ fill: '#F3F4F6' }}
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                                />
+                                <Bar dataKey="documentCount" name="Documents" fill="#14b8a6" radius={[6, 6, 0, 0]} barSize={40} />
+                                <Bar dataKey="flashcardCount" name="Flashcards" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={40} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
                 {/* Main Content Card */}
                 <div className="bg-white/60 backdrop-blur-xl rounded-[2rem] shadow-xl border border-white/50 overflow-hidden animate-fade-in-up delay-200">
                     {/* Toolbar */}

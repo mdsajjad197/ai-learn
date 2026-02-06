@@ -295,3 +295,17 @@ export const saveQuizResult = async (req, res) => {
         res.status(500).json({ message: 'Failed to save result' });
     }
 };
+// @desc    Generate Revision Plan
+// @route   POST /api/documents/:id/plan
+export const generateRevisionPlan = async (req, res) => {
+    try {
+        const doc = await Document.findById(req.params.id);
+        if (!doc) return res.status(404).json({ message: 'Document not found' });
+
+        const plan = await aiGenerateRevisionPlan(doc.content, doc.name);
+        res.json(plan);
+    } catch (error) {
+        console.error("Generate Plan Error:", error);
+        res.status(500).json({ message: 'AI generation failed: ' + error.message });
+    }
+};

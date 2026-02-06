@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { dataService } from '../services/DataService';
 import { TabNavigation, ChatBubble, Button, Flashcard, Quiz } from '../components/UI';
 
-import { ArrowLeft, ArrowRight, Save, Share2, MoreVertical, Trash2, MessageSquare, Layers, FileText, Brain, Menu, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Save, Share2, MoreVertical, Trash2, MessageSquare, Layers, FileText, Brain, Menu, X, Sparkles, Calendar } from 'lucide-react';
 
 const DocumentDetail = () => {
     const { id } = useParams();
@@ -107,7 +107,8 @@ const DocumentDetail = () => {
         { id: 'chat', label: 'AI Chat', icon: <MessageSquare size={18} /> },
         { id: 'flashcards', label: 'Flashcards', icon: <Layers size={18} /> },
         { id: 'content', label: 'Raw Content', icon: <FileText size={18} /> },
-        { id: 'quiz', label: 'Quiz', icon: <Brain size={18} /> }
+        { id: 'quiz', label: 'Quiz', icon: <Brain size={18} /> },
+        { id: 'plan', label: 'Revision', icon: <Calendar size={18} /> }
     ];
 
     return (
@@ -361,6 +362,82 @@ const DocumentDetail = () => {
                                         onRestart={() => setQuizzes([])}
                                         onComplete={handleQuizComplete}
                                     />
+                                )}
+                            </div>
+                        )}
+
+                        {/* Revision Plan Tab */}
+                        {activeTab === 'plan' && (
+                            <div className="h-full overflow-y-auto p-4 sm:p-8 bg-white flex flex-col">
+                                {(!doc.revisionPlan || doc.revisionPlan.length === 0) ? (
+                                    <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                                        <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                            <Brain className="w-8 h-8" />
+                                        </div>
+                                        <h3 className="text-xl font-bold text-gray-900 mb-2">Smart Revision Planner</h3>
+                                        <p className="text-gray-500 mb-8 max-w-sm mx-auto">
+                                            Get a personalized daily study schedule based on this document's key concepts.
+                                        </p>
+                                        <Button
+                                            text="Generate Revision Plan"
+                                            variant="secondary"
+                                            onClick={async () => {
+                                                try {
+                                                    alert("Generating plan...");
+                                                    const plan = await dataService.generateRevisionPlan(id);
+                                                    setDoc(prev => ({ ...prev, revisionPlan: plan }));
+                                                    alert("Plan generated!");
+                                                } catch (e) {
+                                                    alert("Failed to generate plan");
+                                                }
+                                            }}
+                                            icon={<Sparkles className="w-4 h-4" />}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="max-w-3xl mx-auto w-full space-y-8 animate-fade-in">
+                                        <div className="flex justify-between items-end border-b border-gray-100 pb-4">
+                                            <div>
+                                                <h2 className="text-2xl font-bold text-gray-900">Your Revision Schedule</h2>
+                                                <p className="text-gray-500 text-sm mt-1">Follow this plan to master the material.</p>
+                                            </div>
+                                            <Button
+                                                text="Refresh Plan"
+                                                variant="outline"
+                                                onClick={async () => {
+                                                    if (confirm("Regenerate plan?")) {
+                                                        const plan = await dataService.generateRevisionPlan(id);
+                                                        setDoc(prev => ({ ...prev, revisionPlan: plan }));
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="space-y-0 relative border-l-2 border-indigo-100 ml-4">
+                                            {doc.revisionPlan.map((day, idx) => (
+                                                <div key={idx} className="relative pl-8 pb-10 last:pb-0">
+                                                    <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-4 border-indigo-500"></div>
+                                                    <div className="bg-gray-50 rounded-xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                                                        <div className="flex justify-between items-start mb-3">
+                                                            <h3 className="font-bold text-indigo-900 text-lg">{day.day}</h3>
+                                                            <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-bold uppercase rounded-full tracking-wide">
+                                                                {day.focus}
+                                                            </span>
+                                                        </div>
+                                                        <ul className="space-y-3">
+                                                            {day.tasks.map((task, tIdx) => (
+                                                                <li key={tIdx} className="flex items-start gap-3 text-gray-700">
+                                                                    <div className="mt-1 w-5 h-5 rounded border border-gray-300 flex items-center justify-center flex-shrink-0 bg-white">
+                                                                        {/* Checkbox visual only */}
+                                                                    </div>
+                                                                    <span>{task}</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                         )}

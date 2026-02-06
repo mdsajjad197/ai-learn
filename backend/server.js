@@ -65,8 +65,13 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Global Error Handler (MUST be last)
+// Global Error Handler (MUST be last)
 app.use((err, req, res, next) => {
     console.error("🔥 GLOBAL ERROR HANDLER:", err);
+    try {
+        fs.appendFileSync('debug_error.log', `[${new Date().toISOString()}] ${err.stack || err.message}\n`);
+    } catch (e) { console.error("Failed to write to log", e); }
+
     res.status(500).json({
         message: "Server Error (Global Handler)",
         error: err.message,

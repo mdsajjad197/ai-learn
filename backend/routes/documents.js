@@ -14,7 +14,8 @@ import {
     getUserStats,
     generateQuiz,
     saveQuizResult,
-    getAllUserFlashcards
+    getAllUserFlashcards,
+    generateRevisionPlan
 } from '../controllers/docController.js';
 
 import cloudinary from '../config/cloudinary.js';
@@ -97,5 +98,6 @@ router.get('/:id/flashcards', protect, getFlashcards);
 router.post('/:id/chat', protect, chatWithDocument);
 router.post('/:id/quiz', protect, generateQuiz);
 router.post('/:id/quiz/result', protect, saveQuizResult);
+router.post('/:id/plan', protect, generateRevisionPlan);
 
 export default router;

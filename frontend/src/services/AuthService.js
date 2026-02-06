@@ -35,6 +35,18 @@ export class AuthService {
         }
     }
 
+    async updateProfile(data) {
+        try {
+            const response = await api.put('/auth/profile', data);
+            if (response.data.token) {
+                localStorage.setItem(this.SESSION_KEY, JSON.stringify(response.data));
+            }
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data?.message || 'Profile update failed');
+        }
+    }
+
     logout() {
         localStorage.removeItem(this.SESSION_KEY);
         // Force reload or redirect handled by component
