@@ -5,6 +5,7 @@ import { authService } from '../services/AuthService';
 import { Button } from '../components/UI';
 import { Users, FileText, HardDrive, Trash2, Search, Eye, X, MoreVertical, Shield, Calendar, Download, LogOut, ArrowLeft, Layers } from 'lucide-react';
 import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar } from 'recharts';
+import UserAnalysisCard from '../components/UserAnalysisCard';
 
 const Admin = () => {
     const navigate = useNavigate();
@@ -441,14 +442,13 @@ const Admin = () => {
                                                 </td>
                                                 <td className="px-10 py-6 text-right">
                                                     <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button onClick={() => setSelectedUser(item)} className="p-3 bg-white/5 text-purple-400 hover:bg-purple-400 hover:text-black rounded-xl transition-all">
-                                                            <Eye size={18} />
+                                                        <button onClick={() => setSelectedUser(item)} className="flex items-center gap-2 px-4 py-2 bg-white/5 text-purple-400 hover:bg-purple-500 hover:text-white rounded-xl transition-all group/btn">
+                                                            <Layers size={16} />
+                                                            <span className="text-[10px] font-black uppercase tracking-widest hidden xl:inline-block">Analyze</span>
                                                         </button>
-                                                        {currentUser && currentUser._id !== item._id && (
-                                                            <button onClick={() => handleDeleteUser(item._id)} className="p-3 bg-white/5 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all">
-                                                                <Trash2 size={18} />
-                                                            </button>
-                                                        )}
+                                                        <button onClick={() => handleDeleteUser(item._id)} className="p-3 bg-white/5 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all">
+                                                            <Trash2 size={18} />
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </>
@@ -526,54 +526,11 @@ const Admin = () => {
             {/* Matrix Detail Modal */}
             {selectedUser && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-fade-in">
-                    <div className="bg-[#0a0a0a] border border-white/10 rounded-[3rem] shadow-[0_0_100px_rgba(168,85,247,0.1)] w-full max-w-md overflow-hidden relative animate-scale-in">
-                        <button onClick={() => setSelectedUser(null)} className="absolute top-8 right-8 z-10 p-3 bg-white/5 text-white rounded-full hover:bg-white/10 transition-colors">
-                            <X size={20} />
-                        </button>
-
-                        <div className="h-40 bg-gradient-to-br from-purple-500 to-orange-600 p-10 flex items-end relative">
-                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
-                            <img className="h-32 w-32 rounded-[2rem] border-4 border-[#0a0a0a] shadow-2xl bg-white object-cover absolute -bottom-16 left-10" src={selectedUser.avatar} alt="" />
-                        </div>
-
-                        <div className="pt-24 px-10 pb-12">
-                            <div className="flex justify-between items-start mb-10">
-                                <div>
-                                    <h2 className="text-3xl font-black text-white uppercase tracking-tighter leading-none mb-2">{selectedUser.name}</h2>
-                                    <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px] leading-none">{selectedUser.email}</p>
-                                </div>
-                                <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] ${selectedUser.role === 'admin' ? 'bg-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'bg-orange-500 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]'}`}>
-                                    {selectedUser.role}
-                                </span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4 mb-10">
-                                <div className="p-6 bg-white/[0.03] rounded-3xl border border-white/5 hover:border-purple-500/30 transition-colors text-center">
-                                    <div className="text-4xl font-heading font-black text-white mb-1 tabular-nums">{selectedUser.documentCount || 0}</div>
-                                    <div className="text-[8px] font-black text-gray-600 uppercase tracking-[0.3em]">Synapse Assets</div>
-                                </div>
-                                <div className="p-6 bg-white/[0.03] rounded-3xl border border-white/5 hover:border-orange-500/30 transition-colors text-center">
-                                    <div className="text-4xl font-heading font-black text-white mb-1 tabular-nums">{selectedUser.flashcardCount || 0}</div>
-                                    <div className="text-[8px] font-black text-gray-600 uppercase tracking-[0.3em]">Knowledge Cells</div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-3 mb-10">
-                                <div className="flex justify-between items-center px-6 py-4 bg-white/[0.02] rounded-2xl border border-white/5">
-                                    <span className="text-gray-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Shield size={14} /> Matrix ID</span>
-                                    <span className="text-purple-400 text-[10px] font-black font-mono tracking-tighter">{selectedUser._id}</span>
-                                </div>
-                                <div className="flex justify-between items-center px-6 py-4 bg-white/[0.02] rounded-2xl border border-white/5">
-                                    <span className="text-gray-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Calendar size={14} /> Sequence Start</span>
-                                    <span className="text-white text-xs font-black uppercase tracking-tighter">{new Date(selectedUser.createdAt).toLocaleDateString()}</span>
-                                </div>
-                            </div>
-
-                            <button onClick={() => setSelectedUser(null)} className="w-full py-5 bg-white text-black font-black uppercase tracking-[0.3em] text-[10px] rounded-2xl shadow-xl shadow-white/5 hover:scale-[1.02] active:scale-95 transition-all">
-                                Terminate Inspection
-                            </button>
-                        </div>
-                    </div>
+                    <UserAnalysisCard
+                        user={selectedUser}
+                        onClose={() => setSelectedUser(null)}
+                        onDelete={handleDeleteUser}
+                    />
                 </div>
             )}
 

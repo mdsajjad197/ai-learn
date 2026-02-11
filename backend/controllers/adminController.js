@@ -91,9 +91,10 @@ export const getUsers = async (req, res) => {
 // @route   DELETE /api/admin/users/:id
 export const deleteUser = async (req, res) => {
     try {
-        if (req.params.id === req.user._id.toString()) {
-            return res.status(400).json({ message: 'You cannot delete yourself' });
-        }
+        // Allow self-deletion if requested
+        // if (req.params.id === req.user._id.toString()) {
+        //     return res.status(400).json({ message: 'You cannot delete yourself' });
+        // }
         const user = await User.findById(req.params.id);
         if (user) {
             await user.deleteOne();

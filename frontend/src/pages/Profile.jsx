@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/AuthService';
 import { Input, Button } from '../components/UI';
+import UserCard from '../components/UserCard';
+import AdminProfileCard from '../components/AdminProfileCard';
 import { Phone, Lock, Edit2, Save as SaveIcon, X, User, Mail, Shield, LogOut } from 'lucide-react';
 
 const Profile = () => {
@@ -152,37 +154,11 @@ const Profile = () => {
                         </form>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Full Name</label>
-                                <div className="flex items-center gap-3 text-lg font-medium text-gray-900 bg-gray-50 p-3 rounded-lg border border-gray-100">
-                                    <User className="text-teal-500" size={20} />
-                                    {user?.name || 'N/A'}
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Email Address</label>
-                                <div className="flex items-center gap-3 text-lg font-medium text-gray-900 bg-gray-50 p-3 rounded-lg border border-gray-100">
-                                    <Mail className="text-teal-500" size={20} />
-                                    {user?.email || 'N/A'}
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Phone Number</label>
-                                <div className="flex items-center gap-3 text-lg font-medium text-gray-900 bg-gray-50 p-3 rounded-lg border border-gray-100">
-                                    <Phone className="text-teal-500" size={20} />
-                                    {user?.phone || 'Not Verified'}
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Account Role</label>
-                                <div className="flex items-center gap-3 text-lg font-medium text-gray-900 bg-gray-50 p-3 rounded-lg border border-gray-100">
-                                    <Shield className="text-teal-500" size={20} />
-                                    <span className="capitalize">{user?.role || 'User'}</span>
-                                </div>
-                            </div>
+                            {user.isAdmin ? (
+                                <AdminProfileCard user={user} />
+                            ) : (
+                                <UserCard user={user} className="w-full md:col-span-2 shadow-none border-0" />
+                            )}
                         </div>
                     )}
 
