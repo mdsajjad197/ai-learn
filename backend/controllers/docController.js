@@ -3,13 +3,16 @@ import FlashcardSet from '../models/FlashcardSet.js';
 import QuizResult from '../models/QuizResult.js';
 import axios from 'axios';
 import cloudinary from '../config/cloudinary.js';
-import { generateChatResponse as aiGenerateChat, generateFlashcards as aiGenerateCards, generateQuiz as aiGenerateQuiz } from '../services/aiService.js';
+import { generateChatResponse as aiGenerateChat, generateFlashcards as aiGenerateCards, generateQuiz as aiGenerateQuiz, generateRevisionPlan as aiGenerateRevisionPlan } from '../services/aiService.js';
 import pdf from '../utils/pdfParser.js';
 
 // @desc    Delete a document
 // @route   DELETE /api/documents/:id
 export const deleteDocument = async (req, res) => {
     try {
+        if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(404).json({ message: 'Document not found (Invalid ID)' });
+        }
         const doc = await Document.findById(req.params.id);
 
         if (!doc) {
@@ -45,71 +48,99 @@ export const deleteDocument = async (req, res) => {
 
 // @desc    Upload a document
 // @route   POST /api/documents/upload
+// @desc    Upload a document
+// @route   POST /api/documents/upload
+// @desc    Upload a document
+// @route   POST /api/documents/upload
+import fs from 'fs';
+import path from 'path';
+
 export const uploadDocument = async (req, res) => {
+    const logFile = path.join(process.cwd(), 'upload-debug.log');
+    const log = (msg) => fs.appendFileSync(logFile, `[${new Date().toISOString()}] ${msg}\n`);
+
     try {
+        log("Upload started.");
         if (!req.file) {
+            log("No file uploaded.");
             return res.status(400).json({ message: 'No file uploaded' });
         }
 
-        // With Cloudinary storage, stats like size might be in req.file.size or need to be calculated
+        log(`File received: ${req.file.originalname}, Mimetype: ${req.file.mimetype}, Size: ${req.file.size}`);
+
         const fileSizeInBytes = req.file.size || 0;
         const fileSize = (fileSizeInBytes / 1024).toFixed(2) + ' KB';
-
         let extractedText = "No textual content extracted.";
 
+        // 1. Extract Text from Buffer (No download needed!)
         if (req.file.mimetype === 'application/pdf') {
             try {
-                console.log("[DEBUG] Uploaded File Details:", {
-                    filename: req.file.filename,
-                    path: req.file.path,
-                    mimetype: req.file.mimetype
-                });
-
-                // Use the URL returned directly by Cloudinary upload (guaranteed to be valid)
-                // We previously tried to generate a signed URL here, but it caused 401 errors due to path mismatches.
-                // Since access_mode is 'public', req.file.path is accessible.
-                // FIX: Manually construct public HTTPS URL to force public access.
-                // This bypasses any auto-signing behavior of the SDK/Multer.
-                const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-                const publicId = req.file.filename;
-                const downloadUrl = `https://res.cloudinary.com/${cloudName}/raw/upload/${publicId}`;
-
-                console.log(`Downloading PDF from Manual Public URL: ${downloadUrl}`);
-
-                const response = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
-
-                // Verify we didn't download an error page (HTML)
-                const contentType = response.headers['content-type'];
-                if (contentType && contentType.includes('text/html')) {
-                    throw new Error("Failed to download PDF: Received HTML error page from Cloudinary (likely 404 or 401)");
-                }
-
-                const dataBuffer = Buffer.from(response.data);
-
-                const data = await pdf(dataBuffer);
+                log("Processing PDF buffer for text extraction...");
+                console.log("[DEBUG] Processing PDF from Buffer...");
+                const data = await pdf(req.file.buffer);
                 extractedText = data.text;
 
+                log(`Extraction done. Text length: ${extractedText ? extractedText.length : 0}`);
+
+                // Basic validation: if text is empty, maybe generation failed?
+                if (!extractedText || extractedText.trim().length === 0) {
+                    log("WARN: Extracted text is empty.");
+                    console.warn("[WARN] PDF extracted text is empty.");
+                    extractedText = "No readable text found in PDF.";
+                }
             } catch (pError) {
+                log(`ERROR: Parsing failed: ${pError.message}`);
                 console.error("PDF Parsing Failed:", pError);
                 extractedText = `Error extracting text from PDF: ${pError.message}`;
             }
         }
 
+        // 2. Upload to Cloudinary (Stream Upload)
+        const uploadToCloudinary = (buffer) => {
+            return new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream(
+                    {
+                        folder: 'antigravity-docs',
+                        resource_type: 'auto',
+                        public_id: `${Date.now()}-${req.file.originalname.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_')}`,
+                        type: 'authenticated' // Store as private/authenticated to avoid public delivery blocks
+                    },
+                    (error, result) => {
+                        if (error) return reject(error);
+                        resolve(result);
+                    }
+                );
+                uploadStream.end(buffer);
+            });
+        };
+
+        log("Starting Cloudinary upload...");
+        const cloudResult = await uploadToCloudinary(req.file.buffer);
+        log(`Cloudinary upload success. URL: ${cloudResult.secure_url}, PublicID: ${cloudResult.public_id}, Type: ${cloudResult.resource_type}`);
+
+        console.log(`[DEBUG] Cloudinary Upload Success: ${cloudResult.secure_url}`);
+
+        // 3. Save to DB
         const doc = await Document.create({
             name: req.body.name || req.file.originalname,
-            fileName: req.file.filename, // This is the public_id in Cloudinary storage
+            fileName: cloudResult.public_id,
             type: req.file.mimetype,
             size: fileSize,
-            url: req.file.path, // Cloudinary URL
-            publicId: req.file.filename, // Store public_id explicitly
+            url: cloudResult.secure_url,
+            publicId: cloudResult.public_id,
             owner: req.user._id,
             content: extractedText
         });
 
-        res.status(201).json(doc);
+        log(`Document saved to DB. ID: ${doc._id}`);
+        // Transform for response
+        const docResponse = doc.toObject();
+        docResponse.url = `/api/documents/${doc._id}/content`;
+        res.status(201).json(docResponse);
+
     } catch (error) {
+        log(`FATAL ERROR: ${error.message}`);
         console.error("Upload Error:", error);
-        console.error("Req File:", req.file);
         res.status(500).json({ message: `Upload Error: ${error.message}` });
     }
 };
@@ -118,8 +149,18 @@ export const uploadDocument = async (req, res) => {
 // @route   GET /api/documents
 export const getDocuments = async (req, res) => {
     try {
+        const logFile = path.join(process.cwd(), 'upload-debug.log');
+        const log = (msg) => fs.appendFileSync(logFile, `[${new Date().toISOString()}] [getDocuments] ${msg}\n`);
+
         const docs = await Document.find({ owner: req.user._id }).sort({ createdAt: -1 });
-        res.json(docs);
+        log(`Found ${docs.length} documents for user ${req.user.id}`);
+
+        const transformedDocs = docs.map(doc => {
+            const d = doc.toObject();
+            d.url = `/api/documents/${doc._id}/content`;
+            return d;
+        });
+        res.json(transformedDocs);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -156,8 +197,115 @@ export const getUserStats = async (req, res) => {
 
 // @desc    Get single document details
 // @route   GET /api/documents/:id
+// @desc    Get document content (Proxy)
+// @route   GET /api/documents/:id/content
+
+
+export const getDocumentContent = async (req, res) => {
+    try {
+        const logFile = path.join(process.cwd(), 'upload-debug.log');
+        const log = (msg) => fs.appendFileSync(logFile, `[${new Date().toISOString()}] [PROXY] ${msg}\n`);
+
+        const isConfigured = cloudinary.config().api_secret;
+        log(`Cloudinary Configured: ${!!isConfigured} (Cloud: ${cloudinary.config().cloud_name})`);
+
+        const doc = await Document.findById(req.params.id);
+        if (!doc) return res.status(404).json({ message: 'Document not found' });
+
+        if (doc.owner.toString() !== req.user.id && req.user.role !== 'admin') {
+            return res.status(401).json({ message: 'Not authorized' });
+        }
+
+        // Generate a signed URL for internal fetching
+        // Determine resource type based on stored type or URL
+        // PDFs can be 'image' (if paged) or 'raw'
+        // Images are 'image'
+        // Other files are 'raw'
+        let resourceType = 'raw';
+        if (doc.type && doc.type.startsWith('image/')) {
+            resourceType = 'image';
+        } else if (doc.type === 'application/pdf') {
+            // Try 'raw' first as it's the default for auto-upload of PDFs usually
+            resourceType = 'raw';
+        }
+
+        const fetchContent = async (type) => {
+            const urlOptions = {
+                resource_type: type,
+                type: 'authenticated',
+                secure: true
+            };
+
+            // If fetching PDF as image, we might need format if it was converted
+            if (doc.type === 'application/pdf' && type === 'image') {
+                // If it's stored as image, it likely has extension or we need to specify one?
+                // Often 'pdf' format is needed if targeting a page, but for download we want the file.
+                // Cloudinary 'image' type for PDF usually means it's treated as an image asset.
+                // We will try without explicit format first, or keep existing logic if it worked for others.
+                // Existing logic: urlOptions.format = 'pdf'; 
+                urlOptions.format = 'pdf';
+            }
+
+            // private_download_url is more reliable for server-side fetching of authenticated resources
+            // Cloudinary utils.private_download_url signatures are sensitive to parameters.
+
+            const signedUrl = cloudinary.utils.private_download_url(doc.fileName, urlOptions.format || '', {
+                ...urlOptions
+            });
+
+            log(`Fetching ID: ${doc._id}, Type: ${type}, SignedURL: ${signedUrl}`);
+
+            return await axios({
+                url: signedUrl,
+                method: 'GET',
+                responseType: 'stream',
+                timeout: 10000
+            });
+        };
+
+        let response;
+        try {
+            response = await fetchContent(resourceType);
+        } catch (error) {
+            log(`First attempt failed (${resourceType}): ${error.message}`);
+            // Fallback: If image failed, try raw. If raw failed, try image.
+            const fallbackType = resourceType === 'image' ? 'raw' : 'image';
+            log(`Trying fallback: ${fallbackType}`);
+            response = await fetchContent(fallbackType);
+        }
+
+        // Pipe headers and data
+        res.setHeader('Content-Type', response.headers['content-type'] || doc.type);
+        if (response.headers['content-length']) {
+            res.setHeader('Content-Length', response.headers['content-length']);
+        }
+        res.setHeader('Content-Disposition', `inline; filename="${doc.name}"`);
+
+        response.data.pipe(res);
+
+    } catch (error) {
+        const logFile = path.join(process.cwd(), 'upload-debug.log');
+        const log = (msg) => fs.appendFileSync(logFile, `[${new Date().toISOString()}] [PROXY_ERROR] ${msg}\n`);
+        log(`Fatal: ${error.message} ${error.response ? `(Status: ${error.response.status})` : ''}`);
+
+        console.error("Proxy Error:", error.message);
+        if (error.response) {
+            return res.status(error.response.status).send(`Cloudinary Error: ${error.response.statusText}`);
+        }
+        res.status(500).json({ message: 'Failed to fetch document content' });
+    }
+};
+
+// @desc    Get single document details
+// @route   GET /api/documents/:id
 export const getDocumentById = async (req, res) => {
     try {
+        const logFile = path.join(process.cwd(), 'upload-debug.log');
+        const log = (msg) => fs.appendFileSync(logFile, `[${new Date().toISOString()}] [getDocById] ${msg}\n`);
+
+        if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(404).json({ message: 'Document not found (Invalid ID)' });
+        }
         const doc = await Document.findById(req.params.id);
         if (!doc) return res.status(404).json({ message: 'Document not found' });
 
@@ -165,22 +313,9 @@ export const getDocumentById = async (req, res) => {
             return res.status(401).json({ message: 'Not authorized' });
         }
 
-        // Generate a fresh signed URL for the frontend to view/download details
-        // Determine resource type based on stored URL (legacy files might be 'image', new ones 'raw')
-        const resourceType = doc.url.includes('/image/') ? 'image' : 'raw';
-
-        // Generate a fresh signed URL for the frontend to view/download details
-        // FIX: Force Public URL for retrieval as well.
-        // Signed URLs differ from the upload format and cause 401s.
-        const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-        // doc.fileName contains the public_id + extension
-        const signedUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${doc.fileName}`;
-
-        console.log(`[DEBUG] Generated Public Preview URL: ${signedUrl}`);
-
-        // Return doc object but with the fresh URL for access
         const docResponse = doc.toObject();
-        docResponse.url = signedUrl;
+        docResponse.url = `/api/documents/${doc._id}/content`;
+        log(`Returning ID: ${doc._id}, Proxy URL: ${docResponse.url}`);
 
         res.json(docResponse);
     } catch (error) {
@@ -192,6 +327,9 @@ export const getDocumentById = async (req, res) => {
 // @route   POST /api/documents/:id/flashcards
 export const generateFlashcards = async (req, res) => {
     try {
+        if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(404).json({ message: 'Document not found (Invalid ID)' });
+        }
         const doc = await Document.findById(req.params.id);
         if (!doc) return res.status(404).json({ message: 'Document not found' });
 
@@ -216,6 +354,9 @@ export const generateFlashcards = async (req, res) => {
 // @route   GET /api/documents/:id/flashcards
 export const getFlashcards = async (req, res) => {
     try {
+        if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.json([]);
+        }
         const sets = await FlashcardSet.find({ docId: req.params.id });
         res.json(sets);
     } catch (error) {
@@ -245,6 +386,9 @@ export const getAllUserFlashcards = async (req, res) => {
 export const chatWithDocument = async (req, res) => {
     try {
         const { message } = req.body;
+        if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(404).json({ message: 'Document not found (Invalid ID)' });
+        }
         const doc = await Document.findById(req.params.id);
         if (!doc) return res.status(404).json({ message: 'Document not found' });
 
@@ -264,6 +408,9 @@ export const chatWithDocument = async (req, res) => {
 // @route   POST /api/documents/:id/quiz
 export const generateQuiz = async (req, res) => {
     try {
+        if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(404).json({ message: 'Document not found (Invalid ID)' });
+        }
         const doc = await Document.findById(req.params.id);
         if (!doc) return res.status(404).json({ message: 'Document not found' });
 
@@ -279,6 +426,9 @@ export const generateQuiz = async (req, res) => {
 // @route   POST /api/documents/:id/quiz/result
 export const saveQuizResult = async (req, res) => {
     try {
+        if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(404).json({ message: 'Document not found (Invalid ID)' });
+        }
         const { score, totalQuestions } = req.body;
 
         const result = await QuizResult.create({
@@ -299,6 +449,9 @@ export const saveQuizResult = async (req, res) => {
 // @route   POST /api/documents/:id/plan
 export const generateRevisionPlan = async (req, res) => {
     try {
+        if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(404).json({ message: 'Document not found (Invalid ID)' });
+        }
         const doc = await Document.findById(req.params.id);
         if (!doc) return res.status(404).json({ message: 'Document not found' });
 

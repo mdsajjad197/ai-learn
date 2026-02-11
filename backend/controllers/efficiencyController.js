@@ -78,7 +78,7 @@ export const getRevisionPlan = async (req, res) => {
             context = `Student has these topics available: ${topicList.join(', ')}.`;
         }
 
-        const plan = await aiGeneratePlan(context);
+        const plan = await aiGeneratePlan(context, "Efficiency Report: " + topicList.join(', '));
         res.json(plan);
 
     } catch (error) {

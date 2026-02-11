@@ -297,12 +297,35 @@ const DocumentDetail = () => {
                             <div className="h-full overflow-y-auto p-4 bg-gray-100 flex flex-col">
                                 {doc.type === 'application/pdf' ? (
                                     <div className="flex flex-col h-full gap-4">
-
-                                        <iframe
-                                            src={`https://docs.google.com/viewer?url=${encodeURIComponent(doc.url)}&embedded=true`}
-                                            className="w-full flex-grow rounded-xl shadow-sm border border-gray-200 bg-white"
-                                            title="PDF Preview"
-                                        />
+                                        <div className="flex justify-end items-center px-2">
+                                            <a
+                                                href={`${doc.url}?token=${JSON.parse(localStorage.getItem('edu_companion_user'))?.token}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs text-teal-600 font-bold hover:underline flex items-center gap-1"
+                                            >
+                                                Open Original File <ArrowRight size={12} />
+                                            </a>
+                                        </div>
+                                        <div className="flex-grow relative bg-gray-200 rounded-xl overflow-hidden border border-gray-200">
+                                            <object
+                                                data={`${doc.url}?token=${JSON.parse(localStorage.getItem('edu_companion_user'))?.token}`}
+                                                type="application/pdf"
+                                                className="w-full h-full absolute inset-0 rounded-xl"
+                                            >
+                                                <div className="flex flex-col items-center justify-center h-full p-6 text-center text-gray-500">
+                                                    <p className="mb-2">Unable to display PDF directly.</p>
+                                                    <a
+                                                        href={`${doc.url}?token=${JSON.parse(localStorage.getItem('edu_companion_user'))?.token}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition"
+                                                    >
+                                                        Download PDF
+                                                    </a>
+                                                </div>
+                                            </object>
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="prose max-w-none text-gray-700 bg-white p-8 rounded-xl shadow-sm">
@@ -446,8 +469,8 @@ const DocumentDetail = () => {
 
                     </div>
                 </main>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 

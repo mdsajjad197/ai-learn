@@ -11,13 +11,15 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 
 const createAdmin = async () => {
     try {
-        await mongoose.connect(process.env.MONGO_URI);
+        await mongoose.connect(process.env.MONGO_URI, {
+            dbName: 'antigravity'
+        });
         console.log('MongoDB Connected');
 
         const adminUser = {
             name: 'Admin',
-            email: 'admin', // Using 'admin' as requested
-            password: 'admin123',
+            email: process.env.ADMINUSERNAME,
+            password: process.env.ADMINPASSWORD,
             role: 'admin',
             avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Admin'
         };

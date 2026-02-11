@@ -40,11 +40,40 @@ export class AdminService {
         }
     }
 
+    async getDocument(id) {
+        try {
+            const response = await api.get(`/admin/documents/${id}`);
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data?.message || 'Failed to fetch document details');
+        }
+    }
+
+    async deleteAllDocuments() {
+        try {
+            const response = await api.delete('/admin/documents');
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data?.message || 'Failed to delete all documents');
+        }
+    }
+
     async deleteDocument(docId) {
         try {
             await api.delete(`/admin/documents/${docId}`);
         } catch (error) {
             throw new Error(error.response?.data?.message || 'Failed to delete document');
+        }
+    }
+
+    async downloadDocument(docId) {
+        try {
+            const response = await api.get(`/documents/${docId}/content`, {
+                responseType: 'blob'
+            });
+            return response;
+        } catch (error) {
+            throw new Error(error.response?.data?.message || 'Failed to download document');
         }
     }
 }

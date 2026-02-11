@@ -157,7 +157,7 @@ export const generateQuiz = async (context, topic) => {
     }
 };
 
-export const generateRevisionPlan = async (context) => {
+export const generateRevisionPlan = async (context, topic) => {
     if (!openai) initializeAI();
     if (!openai) throw new Error("AI Service Unavailable");
 
@@ -171,7 +171,8 @@ export const generateRevisionPlan = async (context) => {
                 },
                 {
                     role: "user",
-                    content: `Create a concise revision plan based on these topics: ${context}.
+                    content: `Create a concise revision plan based on the document "${topic}".
+                    Here is the text: ${context.substring(0, 10000)}.
                     Return valid JSON Array: [{"day": "Day 1", "tasks": ["Task 1", "Task 2"], "focus": "Main Focus"}].
                     Plan should covers 3-5 days.
                     No markdown.`

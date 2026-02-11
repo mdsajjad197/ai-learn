@@ -47,10 +47,12 @@ export class AuthService {
         }
     }
 
-    logout() {
+    logout(shouldReload = true) {
         localStorage.removeItem(this.SESSION_KEY);
         // Force reload or redirect handled by component
-        window.location.reload();
+        if (shouldReload) {
+            window.location.reload();
+        }
     }
 
     getUser() {

@@ -1,5 +1,8 @@
-import { Input } from '../components/UI';
-import { Phone, Lock, Edit2, Save as SaveIcon, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { authService } from '../services/AuthService';
+import { Input, Button } from '../components/UI';
+import { Phone, Lock, Edit2, Save as SaveIcon, X, User, Mail, Shield, LogOut } from 'lucide-react';
 
 const Profile = () => {
     const navigate = useNavigate();

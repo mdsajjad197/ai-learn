@@ -7,6 +7,7 @@ import {
     uploadDocument,
     getDocuments,
     getDocumentById,
+    getDocumentContent,
     generateFlashcards,
     getFlashcards,
     chatWithDocument,
@@ -24,26 +25,8 @@ import { CloudinaryStorage } from 'multer-storage-cloudinary';
 const router = express.Router();
 
 // Set up Storage (Safe Fallback)
-let storage;
-if (cloudinary.isConfigured) {
-    storage = new CloudinaryStorage({
-        cloudinary: cloudinary,
-        params: {
-            folder: 'antigravity-docs',
-            resource_type: (req, file) => file.mimetype === 'application/pdf' ? 'raw' : 'auto',
-            public_id: (req, file) => {
-                const name = file.originalname.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
-                const ext = path.extname(file.originalname);
-                return `${Date.now()}-${name}${ext}`;
-            },
-            allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'txt', 'md'],
-        },
-    });
-} else {
-    // Fallback to memory storage to prevent server crash on startup
-    console.warn("⚠️ Cloudinary not configured. Using MemoryStorage (Uploads will fail safely).");
-    storage = multer.memoryStorage();
-}
+// Use memory storage to process file buffer (PDF text extraction) before uploading to Cloudinary
+const storage = multer.memoryStorage();
 
 const upload = multer({
     storage: storage,
@@ -92,6 +75,8 @@ router.get('/flashcards/all', protect, getAllUserFlashcards);
 router.route('/:id')
     .get(protect, getDocumentById)
     .delete(protect, deleteDocument);
+
+router.get('/:id/content', protect, getDocumentContent);
 
 router.post('/:id/flashcards', protect, generateFlashcards);
 router.get('/:id/flashcards', protect, getFlashcards);

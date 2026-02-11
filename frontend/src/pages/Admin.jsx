@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { adminService } from '../services/AdminService';
 import { authService } from '../services/AuthService';
 import { Button } from '../components/UI';
-import { Users, FileText, HardDrive, Trash2, Search, Eye, X, MoreVertical, Shield, Calendar, Download, LogOut } from 'lucide-react';
+import { Users, FileText, HardDrive, Trash2, Search, Eye, X, MoreVertical, Shield, Calendar, Download, LogOut, ArrowLeft, Layers } from 'lucide-react';
+import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar } from 'recharts';
 
 const Admin = () => {
     const navigate = useNavigate();
@@ -11,6 +12,7 @@ const Admin = () => {
     const [users, setUsers] = useState([]);
     const [documents, setDocuments] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('users'); // 'users' or 'documents'
     const [currentUser, setCurrentUser] = useState(null);
@@ -34,6 +36,7 @@ const Admin = () => {
             setDocuments(docsData);
         } catch (error) {
             console.error("Dashboard load error:", error);
+            setError(error.message || "Failed to load admin dashboard");
         } finally {
             setLoading(false);
         }
@@ -44,7 +47,7 @@ const Admin = () => {
             try {
                 await adminService.deleteUser(id);
                 setUsers(users.filter(user => user._id !== id));
-                const newStats = await adminService.getStats();
+                const newStats = await adminService.getSystemStats();
                 setStats(newStats);
             } catch (error) {
                 alert(error.response?.data?.message || ' delete user');
@@ -57,11 +60,56 @@ const Admin = () => {
             try {
                 await adminService.deleteDocument(id);
                 setDocuments(documents.filter(doc => doc._id !== id));
-                const newStats = await adminService.getStats();
+                const newStats = await adminService.getSystemStats();
                 setStats(newStats);
             } catch (error) {
                 alert('delete document');
             }
+        }
+    };
+
+    const handleDeleteAllDocuments = async () => {
+        if (window.confirm('WARNING: This will delete ALL documents and their flashcards from the ENTIRE system. This action is IRREVERSIBLE. Are you sure?')) {
+            try {
+                await adminService.deleteAllDocuments();
+                setDocuments([]);
+                const newStats = await adminService.getSystemStats();
+                setStats(newStats);
+                alert('System purge complete.');
+            } catch (error) {
+                alert('Failed to purge system: ' + error.message);
+            }
+        }
+    };
+
+    const handleDownloadDocument = async (doc) => {
+        if (!doc) {
+            alert('Document not found');
+            return;
+        }
+
+        try {
+            // Use axios to download verify auth token
+            const response = await adminService.downloadDocument(doc._id);
+
+            // Create a blob URL from the response
+            const url = window.URL.createObjectURL(new Blob([response.data], {
+                type: response.headers['content-type'] || doc.type
+            }));
+
+            // Create temporary link to trigger download
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', doc.name || 'document');
+            document.body.appendChild(link);
+            link.click();
+
+            // Cleanup
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Download failed:", error);
+            alert(`Download failed: ${error.message}`);
         }
     };
 
@@ -101,7 +149,7 @@ const Admin = () => {
                         {isUser ? (
                             <img className="h-10 w-10 rounded-full object-cover border border-gray-200" src={data.avatar} alt="" />
                         ) : (
-                            <div className="h-10 w-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                            <div className="h-10 w-10 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600">
                                 <FileText size={20} />
                             </div>
                         )}
@@ -167,93 +215,146 @@ const Admin = () => {
     };
 
     if (loading) return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 pt-20">
+            <div className="flex flex-col items-center gap-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
+                <p className="text-gray-500 font-medium">Loading Dashboard...</p>
+            </div>
+        </div>
+    );
+
+    if (error) return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 pt-20">
+            <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl border border-red-100 text-center">
+                <div className="w-16 h-16 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <X size={32} />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Dashboard Error</h2>
+                <p className="text-gray-500 mb-6">{error}</p>
+                <Button text="Try Again" onClick={() => { setError(null); setLoading(true); loadDashboard(); }} variant="primary" fullWidth />
+                <button onClick={() => navigate('/admin/login')} className="mt-4 text-gray-500 font-bold hover:underline text-xs uppercase tracking-widest">Back to Admin Login</button>
+            </div>
         </div>
     );
 
     return (
-        <div className="min-h-screen bg-slate-50 relative overflow-hidden font-sans text-slate-900">
-            {/* Background Gradients */}
-            <div className="fixed inset-0 pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-200/40 rounded-full blur-[100px]"></div>
-                <div className="absolute top-[20%] right-[-5%] w-[30%] h-[30%] bg-teal-200/40 rounded-full blur-[100px]"></div>
-                <div className="absolute bottom-[-10%] left-[20%] w-[30%] h-[30%] bg-indigo-200/40 rounded-full blur-[100px]"></div>
+        <div className="min-h-screen bg-[#050505] text-white relative overflow-hidden font-sans">
+            {/* Command Center Ambient Background */}
+            <div className="fixed inset-0 z-0">
+                <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] bg-purple-600/10 rounded-full blur-[150px] animate-pulse"></div>
+                <div className="absolute bottom-[-20%] left-[-10%] w-[50%] h-[50%] bg-orange-600/10 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }}></div>
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03]"></div>
             </div>
 
-            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* Header */}
-                <div className="mb-10 animate-fade-in-up flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <h1 className="text-4xl font-heading font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-700">
-                            Admin Dashboard
+            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+                {/* Global Command Header */}
+                <div className="mb-12 animate-fade-in-up flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
+                    <div className="space-y-4">
+                        <div className="inline-flex items-center gap-3 px-4 py-1.5 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full">
+                            <div className="w-2 h-2 bg-purple-500 rounded-full animate-ping"></div>
+                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-400">
+                                Global Oversight Active
+                            </span>
+                        </div>
+                        <h1 className="text-5xl sm:text-7xl font-heading font-black tracking-tighter text-white">
+                            Admin <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-orange-500">Dashboard</span>
                         </h1>
-                        <p className="text-gray-500 mt-2 text-lg">Platform overview and management.</p>
+                        <div className="flex items-center gap-6">
+                            <p className="text-gray-500 font-medium">Platform Matrix V2.8</p>
+                        </div>
                     </div>
-                    <button
-                        onClick={() => { authService.logout(); navigate('/login'); }}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all group"
-                    >
-                        <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
-                        <span>Sign Out</span>
-                    </button>
+
+
                 </div>
 
-                {/* Functionality: Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 animate-fade-in-up delay-100">
-                    <ModernStatCard
-                        title="Total Users"
-                        value={stats.users}
-                        icon={<Users size={24} />}
-                        color="from-blue-500 to-blue-600"
-                    />
-                    <ModernStatCard
-                        title="Documents"
-                        value={stats.documents || 0}
-                        icon={<FileText size={24} />}
-                        color="from-teal-500 to-emerald-600"
-                    />
-                    <ModernStatCard
-                        title="Storage"
-                        value={stats.storage || '0 MB'}
-                        icon={<HardDrive size={24} />}
-                        color="from-purple-500 to-indigo-600"
-                    />
+                {/* Critical Metrics Matrix */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                    <div className="relative group bg-white/5 backdrop-blur-3xl border border-white/10 p-10 rounded-[3rem] overflow-hidden hover:bg-white/[0.08] transition-all">
+                        <div className="absolute top-0 right-0 p-8 text-purple-500/20 group-hover:text-purple-500/40 transition-colors">
+                            <Users size={80} strokeWidth={1} />
+                        </div>
+                        <div className="relative z-10">
+                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-4">Total Entities</p>
+                            <h3 className="text-6xl font-heading font-black tabular-nums">{stats.users}</h3>
+                            <div className="mt-8 flex items-center gap-2 text-purple-400 text-xs font-bold font-mono">
+                                <span className="px-2 py-0.5 bg-purple-400/10 rounded tracking-tighter">+8.2% Growth</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="relative group bg-white/5 backdrop-blur-3xl border border-white/10 p-10 rounded-[3rem] overflow-hidden hover:bg-white/[0.08] transition-all">
+                        <div className="absolute top-0 right-0 p-8 text-orange-500/20 group-hover:text-orange-500/40 transition-colors">
+                            <FileText size={80} strokeWidth={1} />
+                        </div>
+                        <div className="relative z-10">
+                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-4">Neural Assets</p>
+                            <h3 className="text-6xl font-heading font-black tabular-nums">{stats.documents || 0}</h3>
+                            <div className="mt-8 flex items-center gap-2 text-orange-400 text-xs font-bold font-mono">
+                                <span className="px-2 py-0.5 bg-orange-400/10 rounded tracking-tighter">Verified Blocks</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="relative group bg-white/5 backdrop-blur-3xl border border-white/10 p-10 rounded-[3rem] overflow-hidden hover:bg-white/[0.08] transition-all">
+                        <div className="absolute top-0 right-0 p-8 text-purple-500/20 group-hover:text-purple-500/40 transition-colors">
+                            <HardDrive size={80} strokeWidth={1} />
+                        </div>
+                        <div className="relative z-10">
+                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-4">Data Footprint</p>
+                            <h3 className="text-6xl font-heading font-black tabular-nums tracking-tighter truncate">{stats.storage || '0 MB'}</h3>
+                            <div className="mt-8 flex items-center gap-2 text-purple-400 text-xs font-bold font-mono">
+                                <span className="px-2 py-0.5 bg-purple-400/10 rounded tracking-tighter">Optimal Distribution</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Functionality: Analytics Chart */}
-                <div className="bg-white/60 backdrop-blur-xl rounded-[2rem] shadow-xl border border-white/50 p-6 mb-10 text-center animate-fade-in-up delay-150">
-                    <h3 className="text-xl font-bold text-gray-800 mb-6 text-left pl-2">Top Users by Activity</h3>
-                    <div className="h-64 w-full">
+                {/* Analytical Visualizer */}
+                <div className="bg-white/5 backdrop-blur-3xl rounded-[3rem] border border-white/10 p-10 mb-12 animate-fade-in-up delay-150 relative group">
+                    <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-purple-400/20 to-transparent"></div>
+                    <div className="flex items-center justify-between mb-10">
+                        <h3 className="text-xl font-bold flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-purple-400/10 flex items-center justify-center text-purple-400"><Layers size={18} /></div>
+                            Activity Flux
+                        </h3>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-gray-500 bg-white/5 px-4 py-2 rounded-full border border-white/5">
+                            Real-time Intelligence
+                        </div>
+                    </div>
+                    <div className="h-80 w-full px-4">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={users.sort((a, b) => b.documentCount - a.documentCount).slice(0, 5)}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12 }} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12 }} />
+                            <BarChart data={(users || []).filter(u => u && u.name).sort((a, b) => (b.documentCount || 0) - (a.documentCount || 0)).slice(0, 10)}>
+                                <defs>
+                                    <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#f97316" stopOpacity={0.8} />
+                                        <stop offset="100%" stopColor="#f97316" stopOpacity={0.1} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700 }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700 }} />
                                 <Tooltip
-                                    cursor={{ fill: '#F3F4F6' }}
-                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                                    cursor={{ fill: 'rgba(255,255,255,0.02)' }}
+                                    contentStyle={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', color: '#fff' }}
                                 />
-                                <Bar dataKey="documentCount" name="Documents" fill="#14b8a6" radius={[6, 6, 0, 0]} barSize={40} />
-                                <Bar dataKey="flashcardCount" name="Flashcards" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={40} />
+                                <Bar dataKey="documentCount" name="Assets" fill="url(#barGradient)" radius={[8, 8, 0, 0]} barSize={24} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
 
-                {/* Main Content Card */}
-                <div className="bg-white/60 backdrop-blur-xl rounded-[2rem] shadow-xl border border-white/50 overflow-hidden animate-fade-in-up delay-200">
-                    {/* Toolbar */}
-                    <div className="p-6 border-b border-gray-100/50 flex flex-col sm:flex-row justify-between gap-4 items-center bg-white/40">
-                        {/* Toggle Tabs */}
-                        <div className="flex bg-gray-100/80 p-1.5 rounded-2xl w-full sm:w-auto">
+                {/* Unified Management Terminal */}
+                <div className="bg-white/5 backdrop-blur-3xl rounded-[3rem] border border-white/10 overflow-hidden animate-fade-in-up delay-200">
+                    {/* Controller Bar */}
+                    <div className="px-10 py-8 border-b border-white/5 flex flex-col md:flex-row justify-between gap-6 items-center bg-white/[0.02]">
+                        <div className="flex bg-black/40 p-1.5 rounded-2xl w-full md:w-auto">
                             {['users', 'documents'].map(tab => (
                                 <button
                                     key={tab}
-                                    onClick={() => setActiveTab(tab)}
-                                    className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-sm font-bold capitalize transition-all duration-200 ${activeTab === tab
-                                        ? 'bg-white text-gray-900 shadow-md transform scale-100'
-                                        : 'text-gray-500 hover:text-gray-700'
+                                    onClick={() => { setActiveTab(tab); setSearchTerm(''); }}
+                                    className={`flex-1 md:flex-none px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${activeTab === tab
+                                        ? 'bg-white text-black shadow-2xl'
+                                        : 'text-gray-500 hover:text-white'
                                         }`}
                                 >
                                     {tab}
@@ -261,78 +362,90 @@ const Admin = () => {
                             ))}
                         </div>
 
-                        {/* Search */}
-                        <div className="relative w-full sm:w-72 group">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-teal-500 transition-colors w-5 h-5" />
-                            <input
-                                type="text"
-                                placeholder={`Search ${activeTab}...`}
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 bg-white/80 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-medium"
-                            />
+                        <div className="flex items-center gap-4 w-full md:w-auto">
+                            {activeTab === 'documents' && (
+                                <button
+                                    onClick={handleDeleteAllDocuments}
+                                    className="px-6 py-3 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 rounded-xl font-black uppercase tracking-wider text-[10px] transition-all flex items-center gap-2 whitespace-nowrap"
+                                >
+                                    <Trash2 size={14} /> Purge All
+                                </button>
+                            )}
+                            <div className="relative w-full md:w-96 group">
+                                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-purple-400 transition-colors w-5 h-5" />
+                                <input
+                                    type="text"
+                                    placeholder={`Filter ${activeTab} matrix...`}
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-14 pr-6 py-5 bg-black/40 border border-white/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400 transition-all font-bold placeholder:text-gray-600 text-sm"
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    {/* Desktop Table View (Hidden on Mobile) */}
-                    <div className="hidden sm:block overflow-x-auto min-h-[400px]">
+                    {/* Matrix View */}
+                    <div className="hidden sm:block overflow-x-auto min-h-[500px]">
                         <table className="w-full">
-                            <thead className="bg-gray-50/50 border-b border-gray-100">
+                            <thead className="bg-white/[0.03] border-b border-white/5">
                                 <tr>
                                     {activeTab === 'users' ? (
                                         <>
-                                            <th className="px-8 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">User</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Role</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Stats</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Joined</th>
-                                            <th className="px-8 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                                            <th className="px-10 py-6 text-left text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Identity Node</th>
+                                            <th className="px-8 py-6 text-left text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Security Role</th>
+                                            <th className="px-8 py-6 text-left text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Neural Load</th>
+                                            <th className="px-8 py-6 text-left text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Initialization</th>
+                                            <th className="px-10 py-6 text-right text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">- Ops -</th>
                                         </>
                                     ) : (
                                         <>
-                                            <th className="px-8 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">File</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Owner</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Size</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Uploaded</th>
-                                            <th className="px-8 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                                            <th className="px-10 py-6 text-left text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Asset Signature</th>
+                                            <th className="px-8 py-6 text-left text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Origin Source</th>
+                                            <th className="px-8 py-6 text-left text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Data Volume</th>
+                                            <th className="px-8 py-6 text-left text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Timestamp</th>
+                                            <th className="px-10 py-6 text-right text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">- Ops -</th>
                                         </>
                                     )}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-50">
+                            <tbody className="divide-y divide-white/[0.04]">
                                 {(activeTab === 'users' ? filteredUsers : filteredDocuments).map((item) => (
-                                    <tr key={item._id} className="group hover:bg-teal-50/30 transition-colors">
+                                    <tr key={item._id} className="group hover:bg-white/[0.03] transition-colors">
                                         {activeTab === 'users' ? (
                                             <>
-                                                <td className="px-8 py-4">
-                                                    <div className="flex items-center gap-4">
-                                                        <img className="h-10 w-10 rounded-full border-2 border-white shadow-sm object-cover" src={item.avatar} alt="" />
+                                                <td className="px-10 py-6">
+                                                    <div className="flex items-center gap-5">
+                                                        <div className="relative">
+                                                            <img className="h-12 w-12 rounded-2xl border border-white/10 object-cover" src={item.avatar} alt="" />
+                                                            <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-black ${item.role === 'admin' ? 'bg-purple-500' : 'bg-orange-500'}`}></div>
+                                                        </div>
                                                         <div>
-                                                            <div className="font-bold text-gray-900">{item.name}</div>
-                                                            <div className="text-xs text-gray-500">{item.email}</div>
+                                                            <div className="font-black text-white group-hover:text-purple-400 transition-colors uppercase tracking-tight">{item.name}</div>
+                                                            <div className="text-xs text-gray-600 font-bold">{item.email}</div>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${item.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
+                                                <td className="px-8 py-6">
+                                                    <span className={`px-4 py-1.5 rounded-lg text-[10px] font-black tracking-widest uppercase ${item.role === 'admin' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-orange-500/10 text-orange-400 border border-orange-500/20'}`}>
                                                         {item.role}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex gap-2 text-xs font-medium text-gray-500">
-                                                        <span className="px-2 py-1 bg-gray-100 rounded-lg" title="Documents"><FileText size={12} className="inline mr-1" />{item.documentCount || 0}</span>
-                                                        <span className="px-2 py-1 bg-gray-100 rounded-lg" title="Flashcards"><Shield size={12} className="inline mr-1" />{item.flashcardCount || 0}</span>
+                                                <td className="px-8 py-6">
+                                                    <div className="flex gap-4 text-[10px] font-black font-mono">
+                                                        <span className="text-gray-500"><span className="text-white">{item.documentCount || 0}</span> Assets</span>
+                                                        <span className="text-gray-500"><span className="text-white">{item.flashcardCount || 0}</span> Cards</span>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 text-sm text-gray-500 font-medium">
+                                                <td className="px-8 py-6 text-xs text-gray-600 font-bold font-mono uppercase tracking-tighter">
                                                     {new Date(item.createdAt).toLocaleDateString()}
                                                 </td>
-                                                <td className="px-8 py-4 text-right">
-                                                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button onClick={() => setSelectedUser(item)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors" title="View Details">
+                                                <td className="px-10 py-6 text-right">
+                                                    <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button onClick={() => setSelectedUser(item)} className="p-3 bg-white/5 text-purple-400 hover:bg-purple-400 hover:text-black rounded-xl transition-all">
                                                             <Eye size={18} />
                                                         </button>
                                                         {currentUser && currentUser._id !== item._id && (
-                                                            <button onClick={() => handleDeleteUser(item._id)} className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors" title="Delete">
+                                                            <button onClick={() => handleDeleteUser(item._id)} className="p-3 bg-white/5 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all">
                                                                 <Trash2 size={18} />
                                                             </button>
                                                         )}
@@ -341,23 +454,26 @@ const Admin = () => {
                                             </>
                                         ) : (
                                             <>
-                                                <td className="px-8 py-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                                                            <FileText size={20} />
+                                                <td className="px-10 py-6">
+                                                    <div className="flex items-center gap-5">
+                                                        <div className="h-12 w-12 rounded-2xl bg-white/5 flex items-center justify-center text-orange-400 border border-white/5 group-hover:scale-110 transition-transform">
+                                                            <FileText size={24} />
                                                         </div>
-                                                        <div className="font-bold text-gray-900 truncate max-w-[200px]">{item.name}</div>
+                                                        <div className="font-black text-white group-hover:text-orange-400 transition-colors uppercase tracking-tight truncate max-w-[200px]">{item.name}</div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="text-sm font-medium text-gray-900">{item.owner?.name || 'Unknown'}</div>
-                                                    <div className="text-xs text-gray-500">{item.owner?.email}</div>
+                                                <td className="px-8 py-6">
+                                                    <div className="text-xs font-bold text-white uppercase tracking-tight">{item.owner?.name || 'Unknown Entity'}</div>
+                                                    <div className="text-[10px] text-gray-600 font-mono italic">{item.owner?.email}</div>
                                                 </td>
-                                                <td className="px-6 py-4 text-sm font-mono text-gray-500">{item.size || 'N/A'}</td>
-                                                <td className="px-6 py-4 text-sm text-gray-500">{new Date(item.createdAt).toLocaleDateString()}</td>
-                                                <td className="px-8 py-4 text-right">
-                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button onClick={() => handleDeleteDocument(item._id)} className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+                                                <td className="px-8 py-6 text-[10px] font-black font-mono text-gray-500 uppercase">{item.size || 'N/A DATA'}</td>
+                                                <td className="px-8 py-6 text-[10px] text-gray-600 font-bold uppercase tracking-widest">{new Date(item.createdAt).toLocaleDateString()}</td>
+                                                <td className="px-10 py-6 text-right">
+                                                    <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button onClick={() => handleDownloadDocument(item)} className="p-3 bg-white/5 text-purple-400 hover:bg-purple-400 hover:text-black rounded-xl transition-all">
+                                                            <Download size={18} />
+                                                        </button>
+                                                        <button onClick={() => handleDeleteDocument(item._id)} className="p-3 bg-white/5 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all">
                                                             <Trash2 size={18} />
                                                         </button>
                                                     </div>
@@ -366,84 +482,102 @@ const Admin = () => {
                                         )}
                                     </tr>
                                 ))}
-                                {(activeTab === 'users' ? filteredUsers : filteredDocuments).length === 0 && (
-                                    <tr>
-                                        <td colSpan="5" className="text-center py-12 text-gray-400">
-                                            No {activeTab} found.
-                                        </td>
-                                    </tr>
-                                )}
                             </tbody>
                         </table>
                     </div>
 
-                    {/* Mobile Card View (Visible < 640px) */}
-                    <div className="sm:hidden p-4 bg-gray-50/50 min-h-[300px]">
-                        {(activeTab === 'users' ? filteredUsers : filteredDocuments).length > 0 ? (
-                            (activeTab === 'users' ? filteredUsers : filteredDocuments).map(item => (
-                                <MobileDataCard key={item._id} data={item} type={activeTab === 'users' ? 'user' : 'document'} />
-                            ))
-                        ) : (
-                            <div className="text-center py-10 text-gray-400">No results found</div>
-                        )}
+                    {/* Mobile Grid Redesign */}
+                    <div className="sm:hidden p-6 space-y-4">
+                        {(activeTab === 'users' ? filteredUsers : filteredDocuments).map(item => (
+                            <div key={item._id} className="bg-white/5 border border-white/10 rounded-3xl p-6">
+                                <div className="flex gap-4 mb-6">
+                                    {activeTab === 'users' ? (
+                                        <img className="h-12 w-12 rounded-2xl object-cover" src={item.avatar} alt="" />
+                                    ) : (
+                                        <div className="h-12 w-12 rounded-2xl bg-white/5 flex items-center justify-center text-orange-400"><FileText /></div>
+                                    )}
+                                    <div className="min-w-0">
+                                        <h4 className="font-black text-white uppercase tracking-tight truncate">{item.name}</h4>
+                                        <p className="text-[10px] text-gray-500 font-bold truncate uppercase">{activeTab === 'users' ? item.email : (item.owner?.name || 'Unknown')}</p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-3 mb-6">
+                                    <div className="flex-1 bg-black/40 p-3 rounded-2xl text-center">
+                                        <p className="text-[8px] font-black text-gray-600 uppercase tracking-widest mb-1">Status</p>
+                                        <p className="text-xs font-black text-orange-400">ACTIVE</p>
+                                    </div>
+                                    <div className="flex-1 bg-black/40 p-3 rounded-2xl text-center">
+                                        <p className="text-[8px] font-black text-gray-600 uppercase tracking-widest mb-1">Pulse</p>
+                                        <p className="text-xs font-black text-white">{activeTab === 'users' ? (item.documentCount || 0) : (item.size || '0 MB')}</p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-3">
+                                    <button onClick={() => activeTab === 'users' ? setSelectedUser(item) : handleDownloadDocument(item)} className="flex-1 py-4 bg-white text-black rounded-2xl font-black uppercase tracking-widest text-[10px]">
+                                        {activeTab === 'users' ? 'Analyze' : 'Download'}
+                                    </button>
+                                    <button onClick={() => activeTab === 'users' ? handleDeleteUser(item._id) : handleDeleteDocument(item._id)} className="flex-1 py-4 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl font-black uppercase tracking-widest text-[10px]">Purge</button>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
 
-            {/* Modern User Detail Modal */}
+            {/* Matrix Detail Modal */}
             {selectedUser && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden relative animate-scale-in">
-                        <button onClick={() => setSelectedUser(null)} className="absolute top-4 right-4 z-10 p-2 bg-black/20 text-white rounded-full hover:bg-black/40 transition-colors">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-fade-in">
+                    <div className="bg-[#0a0a0a] border border-white/10 rounded-[3rem] shadow-[0_0_100px_rgba(168,85,247,0.1)] w-full max-w-md overflow-hidden relative animate-scale-in">
+                        <button onClick={() => setSelectedUser(null)} className="absolute top-8 right-8 z-10 p-3 bg-white/5 text-white rounded-full hover:bg-white/10 transition-colors">
                             <X size={20} />
                         </button>
 
-                        <div className="h-32 bg-gradient-to-r from-teal-500 to-blue-600 relative overflow-hidden">
-                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"></div>
+                        <div className="h-40 bg-gradient-to-br from-purple-500 to-orange-600 p-10 flex items-end relative">
+                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
+                            <img className="h-32 w-32 rounded-[2rem] border-4 border-[#0a0a0a] shadow-2xl bg-white object-cover absolute -bottom-16 left-10" src={selectedUser.avatar} alt="" />
                         </div>
 
-                        <div className="px-8 pb-8">
-                            <div className="relative -mt-16 mb-4 flex justify-between items-end">
-                                <img className="h-32 w-32 rounded-3xl border-4 border-white shadow-xl bg-white object-cover" src={selectedUser.avatar} alt="" />
-                                <span className={`mb-2 px-3 py-1 font-bold text-xs uppercase tracking-wider rounded-lg ${selectedUser.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
+                        <div className="pt-24 px-10 pb-12">
+                            <div className="flex justify-between items-start mb-10">
+                                <div>
+                                    <h2 className="text-3xl font-black text-white uppercase tracking-tighter leading-none mb-2">{selectedUser.name}</h2>
+                                    <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px] leading-none">{selectedUser.email}</p>
+                                </div>
+                                <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] ${selectedUser.role === 'admin' ? 'bg-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'bg-orange-500 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]'}`}>
                                     {selectedUser.role}
                                 </span>
                             </div>
 
-                            <div className="mb-8">
-                                <h2 className="text-2xl font-bold text-gray-900">{selectedUser.name}</h2>
-                                <p className="text-gray-500 font-medium">{selectedUser.email}</p>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4 mb-6">
-                                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 text-center group hover:border-teal-200 transition-colors">
-                                    <div className="text-3xl font-bold text-gray-900 mb-1">{selectedUser.documentCount || 0}</div>
-                                    <div className="text-xs font-bold text-gray-400 uppercase tracking-wider group-hover:text-teal-600">Documents</div>
+                            <div className="grid grid-cols-2 gap-4 mb-10">
+                                <div className="p-6 bg-white/[0.03] rounded-3xl border border-white/5 hover:border-purple-500/30 transition-colors text-center">
+                                    <div className="text-4xl font-heading font-black text-white mb-1 tabular-nums">{selectedUser.documentCount || 0}</div>
+                                    <div className="text-[8px] font-black text-gray-600 uppercase tracking-[0.3em]">Synapse Assets</div>
                                 </div>
-                                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 text-center group hover:border-purple-200 transition-colors">
-                                    <div className="text-3xl font-bold text-gray-900 mb-1">{selectedUser.flashcardCount || 0}</div>
-                                    <div className="text-xs font-bold text-gray-400 uppercase tracking-wider group-hover:text-purple-600">Flashcards</div>
+                                <div className="p-6 bg-white/[0.03] rounded-3xl border border-white/5 hover:border-orange-500/30 transition-colors text-center">
+                                    <div className="text-4xl font-heading font-black text-white mb-1 tabular-nums">{selectedUser.flashcardCount || 0}</div>
+                                    <div className="text-[8px] font-black text-gray-600 uppercase tracking-[0.3em]">Knowledge Cells</div>
                                 </div>
                             </div>
 
-                            <div className="space-y-3">
-                                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                                    <span className="flex items-center gap-2 text-gray-500 text-sm font-medium"><Shield size={16} /> User ID</span>
-                                    <span className="text-gray-900 text-xs font-mono bg-white px-2 py-1 rounded border border-gray-200">{selectedUser._id}</span>
+                            <div className="space-y-3 mb-10">
+                                <div className="flex justify-between items-center px-6 py-4 bg-white/[0.02] rounded-2xl border border-white/5">
+                                    <span className="text-gray-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Shield size={14} /> Matrix ID</span>
+                                    <span className="text-purple-400 text-[10px] font-black font-mono tracking-tighter">{selectedUser._id}</span>
                                 </div>
-                                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                                    <span className="flex items-center gap-2 text-gray-500 text-sm font-medium"><Calendar size={16} /> Joined</span>
-                                    <span className="text-gray-900 text-sm font-bold">{new Date(selectedUser.createdAt).toLocaleDateString()}</span>
+                                <div className="flex justify-between items-center px-6 py-4 bg-white/[0.02] rounded-2xl border border-white/5">
+                                    <span className="text-gray-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Calendar size={14} /> Sequence Start</span>
+                                    <span className="text-white text-xs font-black uppercase tracking-tighter">{new Date(selectedUser.createdAt).toLocaleDateString()}</span>
                                 </div>
                             </div>
 
-                            <div className="mt-8">
-                                <Button text="Close Profile" fullWidth variant="outline" onClick={() => setSelectedUser(null)} />
-                            </div>
+                            <button onClick={() => setSelectedUser(null)} className="w-full py-5 bg-white text-black font-black uppercase tracking-[0.3em] text-[10px] rounded-2xl shadow-xl shadow-white/5 hover:scale-[1.02] active:scale-95 transition-all">
+                                Terminate Inspection
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
+
+            {/* Removed View Document Modal */}
         </div>
     );
 };

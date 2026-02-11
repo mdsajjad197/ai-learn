@@ -2,6 +2,36 @@ import User from '../models/User.js';
 import Document from '../models/Document.js';
 import FlashcardSet from '../models/FlashcardSet.js';
 
+// @desc    Delete all documents (Admin)
+// @route   DELETE /api/admin/documents
+export const deleteAllDocuments = async (req, res) => {
+    try {
+        // Delete all flashcards first
+        await FlashcardSet.deleteMany({});
+        // Delete all documents
+        await Document.deleteMany({});
+
+        res.json({ message: 'All documents and associated flashcards have been purged.' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Get single document (Admin)
+// @route   GET /api/admin/documents/:id
+export const getDocument = async (req, res) => {
+    try {
+        const doc = await Document.findById(req.params.id).populate('owner', 'name email');
+        if (doc) {
+            res.json(doc);
+        } else {
+            res.status(404).json({ message: 'Document not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 // @desc    Get all users with stats
 // @route   GET /api/admin/users
 export const getUsers = async (req, res) => {
@@ -130,7 +160,14 @@ export const getAllDocuments = async (req, res) => {
         const docs = await Document.find({})
             .populate('owner', 'name email')
             .sort({ createdAt: -1 });
-        res.json(docs);
+
+        const transformedDocs = docs.map(doc => {
+            const d = doc.toObject();
+            d.url = `/api/documents/${doc._id}/content`;
+            return d;
+        });
+
+        res.json(transformedDocs);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -142,8 +179,11 @@ export const deleteDocument = async (req, res) => {
     try {
         const doc = await Document.findById(req.params.id);
         if (doc) {
+            // Delete associated flashcards first
+            await FlashcardSet.deleteMany({ docId: doc._id });
+
             await doc.deleteOne();
-            res.json({ message: 'Document removed' });
+            res.json({ message: 'Document and associated flashcards removed' });
         } else {
             res.status(404).json({ message: 'Document not found' });
         }

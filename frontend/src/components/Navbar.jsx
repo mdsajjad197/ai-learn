@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/AuthService';
-import { BookOpen, Menu, X, Rocket, Layout, User as UserIcon, LogOut, ChevronDown, Layers } from 'lucide-react';
+import { BookOpen, Menu, X, Rocket, Layout, User as UserIcon, LogOut, ChevronDown, Layers, FileText } from 'lucide-react';
 
 export const Navbar = ({ user }) => {
     const navigate = useNavigate();
@@ -54,20 +54,24 @@ export const Navbar = ({ user }) => {
                         {user ? (
                             <>
                                 <div className="flex items-center bg-white/5 rounded-full px-2 py-1 border border-white/10 mr-4">
-                                    <Link to="/dashboard" className={navLinkClass('/dashboard')}>
-                                        Dashboard
-                                    </Link>
-                                    <Link to="/documents" className={navLinkClass('/documents')}>
-                                        Documents
-                                    </Link>
-                                    <Link to="/flashcards" className={navLinkClass('/flashcards')}>
-                                        Flashcards
-                                    </Link>
-                                    {user.role === 'admin' && (
-                                        <Link to="/admin" className={navLinkClass('/admin')}>
-                                            Admin
+                                    {user.role !== 'admin' && (
+                                        <Link to="/dashboard" className={navLinkClass('/dashboard')}>
+                                            Dashboard
                                         </Link>
                                     )}
+                                    {user.role !== 'admin' && (
+                                        <Link to="/documents" className={navLinkClass('/documents')}>
+                                            Documents
+                                        </Link>
+                                    )}
+                                    {user.role !== 'admin' && (
+                                        <Link to="/flashcards" className={navLinkClass('/flashcards')}>
+                                            Flashcards
+                                        </Link>
+                                    )}
+                                </div>
+                                <div className="text-[10px] text-teal-400 font-mono px-2 hidden sm:block">
+                                    {user.email} | {user.role}
                                 </div>
 
                                 <div className="flex items-center space-x-4 pl-4 border-l border-white/10">
@@ -136,16 +140,18 @@ export const Navbar = ({ user }) => {
                                 </div>
                             </div>
 
-                            <Link to="/dashboard" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors font-medium">
-                                <Layout size={20} /> Dashboard
-                            </Link>
-                            <Link to="/flashcards" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors font-medium">
-                                <Layers size={20} /> Flashcards
-                            </Link>
-                            {user.role === 'admin' && (
-                                <Link to="/admin" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 text-purple-400 hover:bg-purple-500/10 rounded-xl transition-colors font-medium">
-                                    <Rocket size={20} /> Admin Panel
-                                </Link>
+                            {user.role !== 'admin' && (
+                                <>
+                                    <Link to="/dashboard" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors font-medium">
+                                        <Layout size={20} /> Dashboard
+                                    </Link>
+                                    <Link to="/documents" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors font-medium">
+                                        <FileText size={20} /> Documents
+                                    </Link>
+                                    <Link to="/flashcards" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors font-medium">
+                                        <Layers size={20} /> Flashcards
+                                    </Link>
+                                </>
                             )}
                             <Link to="/profile" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors font-medium">
                                 <UserIcon size={20} /> My Profile

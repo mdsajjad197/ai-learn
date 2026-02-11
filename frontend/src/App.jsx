@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import Documents from './pages/Documents';
 import DocumentDetail from './pages/DocumentDetail';
 import Admin from './pages/Admin';
+import AdminLogin from './pages/AdminLogin';
 import Flashcards from './pages/Flashcards';
 
 
@@ -22,6 +23,7 @@ const ProtectedRoute = ({ children, role }) => {
     return <Navigate to="/login" replace />;
   }
   if (role && user.role !== role) {
+    if (role === 'admin') return <Navigate to="/admin/login" replace />;
     return <Navigate to="/dashboard" replace />;
   }
   return children;
@@ -38,7 +40,7 @@ function App() {
     setUser(currentUser);
   }, [location]);
 
-  const hideNavbarRoutes = ['/login', '/signup', '/admin'];
+  const hideNavbarRoutes = ['/login', '/signup', '/admin/login'];
   const shouldShowNavbar = !hideNavbarRoutes.includes(location.pathname);
 
   return (
@@ -50,6 +52,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
 
           <Route path="/dashboard" element={
             <ProtectedRoute>
