@@ -70,9 +70,8 @@ if (process.env.NODE_ENV !== 'production') {
 app.use((err, req, res, next) => {
     console.error("🔥 GLOBAL ERROR HANDLER:", err);
     try {
-        const logPath = path.join(process.cwd(), 'debug_error.log');
-        fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${err.stack || err.message}\n`);
-    } catch (e) { console.error("Failed to write to log", e); }
+        console.error(`[GLOBAL_ERROR] ${new Date().toISOString()} ${err.stack || err.message}`);
+    } catch (e) { console.error("Logger failed", e); }
 
     res.status(500).json({
         message: "Server Error (Global Handler)",
@@ -84,16 +83,14 @@ app.use((err, req, res, next) => {
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
     try {
-        const logPath = path.join(process.cwd(), 'debug_error.log');
-        fs.appendFileSync(logPath, `[${new Date().toISOString()}] Unhandled Rejection: ${reason}\n`);
+        console.error(`[UnhandledRejection] ${new Date().toISOString()} ${reason}`);
     } catch (e) { }
 });
 
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err);
     try {
-        const logPath = path.join(process.cwd(), 'debug_error.log');
-        fs.appendFileSync(logPath, `[${new Date().toISOString()}] Uncaught Exception: ${err.message}\n${err.stack}\n`);
+        console.error(`[UncaughtException] ${new Date().toISOString()} ${err.message}\n${err.stack}`);
     } catch (e) { }
     // process.exit(1); // Optional: restart process
 });

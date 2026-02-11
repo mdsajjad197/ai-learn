@@ -4,9 +4,8 @@ import fs from 'fs';
 import path from 'path';
 
 const logError = (msg) => {
-    const logPath = path.join(process.cwd(), 'debug-log.txt');
     const timestamp = new Date().toISOString();
-    fs.appendFileSync(logPath, `[${timestamp}] ${msg}\n`);
+    console.error(`[AUTH_ERROR] ${timestamp} ${msg}`);
 };
 
 export const protect = async (req, res, next) => {

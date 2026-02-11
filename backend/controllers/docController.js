@@ -56,11 +56,10 @@ import fs from 'fs';
 import path from 'path';
 
 export const uploadDocument = async (req, res) => {
-    const logFile = path.join(process.cwd(), 'upload-debug.log');
+    // Use console logging for serverless environments where file system is read-only
     const log = (msg) => {
-        try {
-            fs.appendFileSync(logFile, `[${new Date().toISOString()}] ${msg}\n`);
-        } catch (e) { console.error("Log write failed", e); }
+        const timestamp = new Date().toISOString();
+        console.log(`[UPLOAD_DEBUG] ${timestamp} ${msg}`);
     };
 
     try {
@@ -106,7 +105,7 @@ export const uploadDocument = async (req, res) => {
                     {
                         folder: 'antigravity-docs',
                         resource_type: 'auto',
-                        public_id: `${Date.now()}-${req.file.originalname.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_')}`,
+                        public_id: `${Date.now()}-${req.file.originalname.replace(/[^a-zA-Z0-9.]/g, '_')}`, // Keep extension for raw files
                         type: 'authenticated' // Store as private/authenticated to avoid public delivery blocks
                     },
                     (error, result) => {
@@ -163,8 +162,7 @@ export const uploadDocument = async (req, res) => {
 // @route   GET /api/documents
 export const getDocuments = async (req, res) => {
     try {
-        const logFile = path.join(process.cwd(), 'upload-debug.log');
-        const log = (msg) => fs.appendFileSync(logFile, `[${new Date().toISOString()}] [getDocuments] ${msg}\n`);
+        const log = (msg) => console.log(`[getDocuments] ${new Date().toISOString()} ${msg}`);
 
         const docs = await Document.find({ owner: req.user._id }).sort({ createdAt: -1 });
         log(`Found ${docs.length} documents for user ${req.user.id}`);
@@ -217,8 +215,7 @@ export const getUserStats = async (req, res) => {
 
 export const getDocumentContent = async (req, res) => {
     try {
-        const logFile = path.join(process.cwd(), 'upload-debug.log');
-        const log = (msg) => fs.appendFileSync(logFile, `[${new Date().toISOString()}] [PROXY] ${msg}\n`);
+        const log = (msg) => console.log(`[PROXY_DEBUG] ${new Date().toISOString()} ${msg}`);
 
         const isConfigured = cloudinary.config().api_secret;
         log(`Cloudinary Configured: ${!!isConfigured} (Cloud: ${cloudinary.config().cloud_name})`);
@@ -252,11 +249,6 @@ export const getDocumentContent = async (req, res) => {
 
             // If fetching PDF as image, we might need format if it was converted
             if (doc.type === 'application/pdf' && type === 'image') {
-                // If it's stored as image, it likely has extension or we need to specify one?
-                // Often 'pdf' format is needed if targeting a page, but for download we want the file.
-                // Cloudinary 'image' type for PDF usually means it's treated as an image asset.
-                // We will try without explicit format first, or keep existing logic if it worked for others.
-                // Existing logic: urlOptions.format = 'pdf'; 
                 urlOptions.format = 'pdf';
             }
 
@@ -289,7 +281,9 @@ export const getDocumentContent = async (req, res) => {
         }
 
         // Pipe headers and data
-        res.setHeader('Content-Type', response.headers['content-type'] || doc.type);
+        // Force application/pdf for PDFs, otherwise trust Cloudinary or DB type
+        const contentType = doc.type === 'application/pdf' ? 'application/pdf' : (response.headers['content-type'] || doc.type);
+        res.setHeader('Content-Type', contentType);
         if (response.headers['content-length']) {
             res.setHeader('Content-Length', response.headers['content-length']);
         }
@@ -298,8 +292,7 @@ export const getDocumentContent = async (req, res) => {
         response.data.pipe(res);
 
     } catch (error) {
-        const logFile = path.join(process.cwd(), 'upload-debug.log');
-        const log = (msg) => fs.appendFileSync(logFile, `[${new Date().toISOString()}] [PROXY_ERROR] ${msg}\n`);
+        const log = (msg) => console.log(`[PROXY_ERROR] ${new Date().toISOString()} ${msg}`);
         log(`Fatal: ${error.message} ${error.response ? `(Status: ${error.response.status})` : ''}`);
 
         console.error("Proxy Error:", error.message);
@@ -314,8 +307,7 @@ export const getDocumentContent = async (req, res) => {
 // @route   GET /api/documents/:id
 export const getDocumentById = async (req, res) => {
     try {
-        const logFile = path.join(process.cwd(), 'upload-debug.log');
-        const log = (msg) => fs.appendFileSync(logFile, `[${new Date().toISOString()}] [getDocById] ${msg}\n`);
+        const log = (msg) => console.log(`[getDocById] ${new Date().toISOString()} ${msg}`);
 
         if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
             return res.status(404).json({ message: 'Document not found (Invalid ID)' });

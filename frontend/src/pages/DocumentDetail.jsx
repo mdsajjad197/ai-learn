@@ -308,13 +308,13 @@ const DocumentDetail = () => {
                                             </a>
                                         </div>
                                         <div className="flex-grow relative bg-gray-200 rounded-xl overflow-hidden border border-gray-200">
-                                            <object
-                                                data={`${doc.url}?token=${JSON.parse(localStorage.getItem('edu_companion_user'))?.token}`}
-                                                type="application/pdf"
-                                                className="w-full h-full absolute inset-0 rounded-xl"
+                                            <iframe
+                                                src={`${doc.url}?token=${JSON.parse(localStorage.getItem('edu_companion_user'))?.token}`}
+                                                className="w-full h-full absolute inset-0 rounded-xl bg-gray-50"
+                                                title="PDF Preview"
                                             >
                                                 <div className="flex flex-col items-center justify-center h-full p-6 text-center text-gray-500">
-                                                    <p className="mb-2">Unable to display PDF directly.</p>
+                                                    <p className="mb-2">This browser doesn't support inline PDFs.</p>
                                                     <a
                                                         href={`${doc.url}?token=${JSON.parse(localStorage.getItem('edu_companion_user'))?.token}`}
                                                         target="_blank"
@@ -324,7 +324,7 @@ const DocumentDetail = () => {
                                                         Download PDF
                                                     </a>
                                                 </div>
-                                            </object>
+                                            </iframe>
                                         </div>
                                     </div>
                                 ) : (
