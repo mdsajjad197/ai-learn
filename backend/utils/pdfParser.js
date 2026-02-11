@@ -1,11 +1,20 @@
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
-// Explicitly set workerSrc to avoid "worker module not found" errors
-// For legacy build in Node, we can point to the same file or null if worker is disabled
-// But modern pdfjs-dist often requires it.
-// We'll trust the legacy build's ability to run without a separate worker file if configured right, 
-// OR we point to the installed worker.
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+import { createRequire } from 'module';
+import { pathToFileURL } from 'url';
+
+const require = createRequire(import.meta.url);
+
+// Explicitly resolve the absolute path to the worker to ensure it works regardless of CWD
+try {
+    const workerPath = require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
+    // On Windows/ESM, pdfjs-dist requires a file:// URL
+    pdfjsLib.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
+} catch (e) {
+    // Fallback or log if resolution fails (unlikely if package is installed)
+    console.warn("Could not resolve specific pdf.worker.mjs path, falling back to string:", e);
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+}
 
 export default async function parsePDF(dataBuffer) {
     try {
