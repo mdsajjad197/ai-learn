@@ -57,7 +57,11 @@ import path from 'path';
 
 export const uploadDocument = async (req, res) => {
     const logFile = path.join(process.cwd(), 'upload-debug.log');
-    const log = (msg) => fs.appendFileSync(logFile, `[${new Date().toISOString()}] ${msg}\n`);
+    const log = (msg) => {
+        try {
+            fs.appendFileSync(logFile, `[${new Date().toISOString()}] ${msg}\n`);
+        } catch (e) { console.error("Log write failed", e); }
+    };
 
     try {
         log("Upload started.");
@@ -106,7 +110,10 @@ export const uploadDocument = async (req, res) => {
                         type: 'authenticated' // Store as private/authenticated to avoid public delivery blocks
                     },
                     (error, result) => {
-                        if (error) return reject(error);
+                        if (error) {
+                            console.error("Cloudinary Callback Error:", error);
+                            return reject(error);
+                        }
                         resolve(result);
                     }
                 );
@@ -115,7 +122,14 @@ export const uploadDocument = async (req, res) => {
         };
 
         log("Starting Cloudinary upload...");
-        const cloudResult = await uploadToCloudinary(req.file.buffer);
+        let cloudResult;
+        try {
+            cloudResult = await uploadToCloudinary(req.file.buffer);
+        } catch (cErr) {
+            log(`Cloudinary Upload Failed: ${cErr.message}`);
+            throw new Error(`Cloudinary Upload Failed: ${cErr.message}`);
+        }
+
         log(`Cloudinary upload success. URL: ${cloudResult.secure_url}, PublicID: ${cloudResult.public_id}, Type: ${cloudResult.resource_type}`);
 
         console.log(`[DEBUG] Cloudinary Upload Success: ${cloudResult.secure_url}`);
@@ -139,9 +153,9 @@ export const uploadDocument = async (req, res) => {
         res.status(201).json(docResponse);
 
     } catch (error) {
-        log(`FATAL ERROR: ${error.message}`);
+        log(`FATAL ERROR: ${error.message} \nStack: ${error.stack}`);
         console.error("Upload Error:", error);
-        res.status(500).json({ message: `Upload Error: ${error.message}` });
+        res.status(500).json({ message: `Upload Error: ${error.message}`, stack: error.stack });
     }
 };
 

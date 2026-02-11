@@ -60,13 +60,18 @@ router.post('/upload', protect, (req, res, next) => {
         });
     }
 
-    upload.single('file')(req, res, (err) => {
-        if (err) {
-            console.error("Multer/Cloudinary Error:", err);
-            return res.status(500).json({ message: `Upload Error: ${err.message}` });
-        }
-        next();
-    });
+    try {
+        upload.single('file')(req, res, (err) => {
+            if (err) {
+                console.error("Multer/Cloudinary Error:", err);
+                return res.status(500).json({ message: `Upload Error: ${err.message}` });
+            }
+            next();
+        });
+    } catch (multerError) {
+        console.error("Multer caught error:", multerError);
+        res.status(500).json({ message: `Upload Middleware Error: ${multerError.message}` });
+    }
 }, uploadDocument);
 
 router.get('/stats', protect, getUserStats);
